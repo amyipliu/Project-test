@@ -65,7 +65,7 @@ p_part$bathroomcnt
 p_part$bedroomcnt[is.na(p_part$bedroomcnt)] = 0
 
 #6 buildinggualitytypedid -> year?
-p_part$buildingqualitytypeid
+p_part$buildingqualitytypeid[is.na(p_part$buildingqualitytypeid)] = 0
 
 #7 buildingclasstypeid - construction material
 p_part$buildingclasstypeid[is.na(p_part$buildingclasstypeid)] =0
@@ -94,7 +94,7 @@ p_part$finishedsquarefeet6[is.na(p_part$finishedsquarefeet6)] = 0
 p_part$finishedsquarefeet12[is.na(p_part$finishedsquarefeet12)] =0
 
 #15 Total Area (TBC)
-p_part$finishedsquarefeet15
+p_part$finishedsquarefeet15[is.na(p_part$finishedsquarefeet15)] = 0
 
 # 16 Size of the finished living area on the first (entry) floor of the home
 p_part$finishedsquarefeet50[is.na(p_part$finishedsquarefeet50)] = 0
@@ -110,6 +110,6 @@ p_part$fips[is.na(p_part$fips)] = 0
 #18  Is a fireplace present in this home 
 p_part$fireplacecnt[is.na(p_part$fireplacecnt)] =  0
 
-write.csv(p_part, file = 'Amy_part.csv')
+
 
 
