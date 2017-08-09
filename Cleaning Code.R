@@ -35,48 +35,82 @@ dataset[is.na(pooltypeid2),"pooltypeid2"] <- 0
 dataset[is.na(pooltypeid7),"pooltypeid7"] <- 0
 dataset[is.na(propertycountylandusecode),"propertycountylandusecode"] <- 0
 dataset[is.na(propertylandusetypeid),"propertylandusetypeid"] <- 0
-dataset$propertyzoningdesc = as.character(dataset$propertyzoningdesc)
 dataset[is.na(propertyzoningdesc),"propertyzoningdesc"] <- "Other"
-dataset$propertyzoningdesc = as.factor(dataset$propertyzoningdesc)
-dataset$regionidcounty <- factor(dataset$regionidcounty)
-dataset$regionidcity <- as.numeric(dataset$regionidcity)
-dataset$regionidzip <- factor(dataset$regionidzip)
-dataset$regionidneighborhood <- factor(dataset$regionidneighborhood)
 dataset[is.na(roomcnt),"roomcnt"] <- 0
 dataset[is.na(storytypeid),"storytypeid"] <- 0
 dataset[is.na(typeconstructiontypeid),"typeconstructiontypeid"] <- 0
 dataset[is.na(yardbuildingsqft17),"yardbuildingsqft17"] <- 0
 dataset[is.na(yardbuildingsqft26),"yardbuildingsqft26"] <- 0
+dataset[is.na(fireplacecnt),"fireplacecnt"] <- 0
+dataset[is.na(airconditioningtypeid),"airconditioningtypeid"] <- 0
+dataset[is.na(architecturalstyletypeid),"architecturalstyletypeid"] <- 0
+dataset[is.na(basementsqft),"basementsqft"] <- 0
+dataset[is.na(bathroomcnt),"bathroomcnt"] <- 0
+dataset[is.na(bedroomcnt),"bedroomcnt"] <- 0
+dataset[is.na(buildingqualitytypeid),"buildingqualitytypeid"] <- 0
+dataset[is.na(buildingclasstypeid),"buildingclasstypeid"] <- 0
+dataset[is.na(calculatedbathnbr),"calculatedbathnbr"] <- 0
+dataset[is.na(decktypeid),"decktypeid"] <- 0
 dataset[is.na(threequarterbathnbr),"threequarterbathnbr"] <- 0
+dataset[is.na(finishedfloor1squarefeet),"finishedfloor1squarefeet"] <- 0
+dataset[is.na(calculatedfinishedsquarefeet),"calculatedfinishedsquarefeet"] <- 0
+dataset[is.na(finishedsquarefeet6),"finishedsquarefeet6"] <- 0
+dataset[is.na(finishedsquarefeet12),"finishedsquarefeet12"] <- 0
+dataset[is.na(finishedsquarefeet13),"finishedsquarefeet13"] <- 0
+dataset[is.na(finishedsquarefeet15),"finishedsquarefeet15"] <- 0
+dataset[is.na(finishedsquarefeet50),"finishedsquarefeet50"] <- 0
+dataset[is.na(unitcnt),"unitcnt"] <- 0
 
 dataset[is.na(structuretaxvaluedollarcnt),"structuretaxvaluedollarcnt"] <- dataset[is.na(structuretaxvaluedollarcnt),"taxvaluedollarcnt"] - dataset[is.na(structuretaxvaluedollarcnt),"landtaxvaluedollarcnt"]
 dataset[is.na(landtaxvaluedollarcnt),"landtaxvaluedollarcnt"] <- dataset[is.na(landtaxvaluedollarcnt),"taxvaluedollarcnt"] - dataset[is.na(landtaxvaluedollarcnt),"structuretaxvaluedollarcnt"]
 
-  #Imputation with correlation(R2 = 0.8)
-  cor.test(dataset$unitcnt, dataset$finishedsquarefeet15)
-  model <- lm(unitcnt ~ finishedsquarefeet15, data=dataset)
-  model[1]
-  prediction <- data.frame(dataset[is.na(unitcnt),"finishedsquarefeet15"])
-  prediction$unitcnt <- as.integer(round(0.7056019097+0.0007814134*prediction$finishedsquarefeet15,0))
-  nrow(dataset[is.na(unitcnt),"unitcnt"])
-  nrow(prediction)
-  dataset[is.na(unitcnt),"unitcnt"] <- prediction$unitcnt
-  model <- NULL
-  dataset[is.na(unitcnt),"unitcnt"] <- 0
+dataset$propertyzoningdesc = as.character(dataset$propertyzoningdesc)
+dataset$propertyzoningdesc = as.factor(dataset$propertyzoningdesc)
+dataset$regionidcounty <- factor(dataset$regionidcounty)
+dataset$regionidcity <- factor(dataset$regionidcity)
+dataset$regionidzip <- factor(dataset$regionidzip)
+dataset$regionidneighborhood <- factor(dataset$regionidneighborhood)
+dataset$airconditioningtypeid <- factor(dataset$airconditioningtypeid)
+dataset$architecturalstyletypeid <- factor(dataset$architecturalstyletypeid)
+dataset$buildingclasstypeid <- factor(dataset$buildingclasstypeid)
+dataset$buildingqualitytypeid <- factor(dataset$buildingqualitytypeid)
+dataset$decktypeid <- factor(dataset$decktypeid)
+dataset$heatingorsystemtypeid <- factor(dataset$heatingorsystemtypeid)
+dataset$pooltypeid10 <- factor(dataset$pooltypeid10)
+dataset$pooltypeid2 <- factor(dataset$pooltypeid2)
+dataset$pooltypeid7 <- factor(dataset$pooltypeid7)
+dataset$storytypeid <- factor(dataset$storytypeid)
+dataset$typeconstructiontypeid <- factor(dataset$typeconstructiontypeid)
 
 #Compute missing values in the cleaned data set  
 precentageallclean <- data.frame(lapply(dataset, function(x) sum(is.na(x))/(sum(is.na(x))+sum(!is.na(x)))))
+classtest <- data.frame(lapply(dataset, function(x) class(x)))
 
-#Record the change in missing values in an .csv file. 
-totalmissing <- rbind(precentageall, precentageallclean)
-write.csv(x = totalmissing, "percentage.csv")
 
 #Create housing dataset on rule roomtcount >0
-housingdataset <- dataset[dataset$roomcnt!=0,]
+housingdataset <- dataset[dataset$structuretaxvaluedollarcnt!=0,]
+percentagehous <- data.frame(lapply(housingdataset, function(x) sum(is.na(x))/(sum(is.na(x))+sum(!is.na(x)))))
 
-head(dataset)
+#Create land dataset on rule ....
+landdataset <- dataset[!is.na(regionidzip) & !is.na(yearbuilt),]
+percentageland <- data.frame(lapply(landdataset, function(x) sum(is.na(x))/(sum(is.na(x))+sum(!is.na(x)))))  
+  
 
+#Record the change in missing values in an .csv file. 
+totalmissing <- cbind(c("precentageall", "precentageallclean", "percentagehous", "percentageland", "class"),
+                      rbind(precentageall, precentageallclean, percentagehous, percentageland, classtest))
 
+rm(precentageall)
+rm(precentageallclean)
+rm(percentagehous)
+rm(percentageland)
+rm(classtest)
+rm(totalmissing)
+rm(dataset)
+
+write.csv(x = totalmissing, "percentage.csv")
+write.csv(housingdataset, "housingdata.csv")
+write.csv(landdataset, "landdataset.csv")
 
 
 
