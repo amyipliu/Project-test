@@ -2,7 +2,8 @@ library(data.table)
 library(ggplot2)
 library(plyr)
 library(dplyr)
-library(kknn)
+library(tabplot)
+library(corrplot)
 
 #Open Data Set ##Set your file location of the properties data set##
 dataset <- fread("C:/Users/Steven Jongerden/Desktop/Machine Learning/Data/properties_2016.csv")
@@ -83,10 +84,36 @@ dataset$pooltypeid7 <- factor(dataset$pooltypeid7)
 dataset$storytypeid <- factor(dataset$storytypeid)
 dataset$typeconstructiontypeid <- factor(dataset$typeconstructiontypeid)
 
+dataset <- dataset[!is.na(dataset$structuretaxvaluedollarcnt),]
+dataset <- dataset[!is.na(dataset$landtaxvaluedollarcnt),]
+
 #Compute missing values in the cleaned data set  
 precentageallclean <- data.frame(lapply(dataset, function(x) sum(is.na(x))/(sum(is.na(x))+sum(!is.na(x)))))
 classtest <- data.frame(lapply(dataset, function(x) class(x)))
 
+#Remove columns that are empty, and have no information
+
+dataset$architecturalstyletypeid <- NULL
+dataset$basementsqft<- NULL
+dataset$decktypeid<- NULL
+dataset$finishedfloor1squarefeet<- NULL
+dataset$finishedsquarefeet13<- NULL
+dataset$finishedsquarefeet50<- NULL
+dataset$finishedsquarefeet6<- NULL
+dataset$fireplacecnt<- NULL
+dataset$garagecarcnt<- NULL
+dataset$garagetotalsqft<- NULL
+dataset$poolsizesum<- NULL
+dataset$pooltypeid2<- NULL
+dataset$regionidcity<- NULL
+dataset$regionidneighborhood<- NULL
+dataset$roomcnt<- NULL
+dataset$storytypeid<- NULL
+dataset$threequarterbathnbr<- NULL
+dataset$typeconstructiontypeid<- NULL
+dataset$yardbuildingsqft17<- NULL
+dataset$yardbuildingsqft26<- NULL
+dataset$fips <-NULL
 
 #Create housing dataset on rule roomtcount >0
 housingdataset <- dataset[dataset$structuretaxvaluedollarcnt!=0,]
@@ -106,12 +133,48 @@ rm(precentageallclean)
 rm(percentagehous)
 rm(percentageland)
 rm(classtest)
-rm(totalmissing)
 rm(dataset)
 
-write.csv(x = totalmissing, "percentage.csv")
-write.csv(housingdataset, "housingdata.csv")
-write.csv(landdataset, "landdataset.csv")
+#write.csv(x = totalmissing, "percentage.csv")
+#write.csv(housingdataset, "housingdata.csv")
+#write.csv(landdataset, "landdataset.csv")
 
+###########################################################################################################
+############################################## END OF CLEANING ############################################
+###########################################################################################################
 
+#Create tableplot with all the variables for landtaxvaluedollarcnt
+colMtx <- matrix(names(housingdataset)[1:length(housingdataset)-1], nrow = 4)
+for (i in 1:ncol(colMtx)) {
+  tableplot(housingdata, 
+            select_string = c(colMtx[,i], "landtaxvaluedollarcnt"), 
+            sortCol = "taxvaluedollarcnt", decreasing = TRUE, 
+            nBins = 30)
+}
+
+#Create tableplot with all the variables for structuretaxvaluedollarcnt
+colMtx <- matrix(names(housingdataset)[1:length(housingdataset)-1], nrow = 4)
+for (i in 1:ncol(colMtx)) {
+  tableplot(housingdata, 
+            select_string = c(colMtx[,i], "landtaxvaluedollarcnt"), 
+            sortCol = "taxvaluedollarcnt", decreasing = TRUE, 
+            nBins = 30)
+}
+
+#Create corplots with all the numeric variables for landtaxvaluedollarcnt
+numeric_features <- names(housingdataset)[sapply(housingdataset, is.numeric)]
+corHousingLandTax <- cor(housingdataset %>% select(one_of(numeric_features, "landtaxvaluedollarcnt")), method = "pearson", use = "pairwise.complete.obs")
+corHousingLandTax[is.na(corHousingLandTax)] = 0
+corrplot(corHousingLandTax, method = "color", order="hclust")
+
+#Create corplots with all the categorical variables for landtaxvaluedollarcnt
+#Minimized to save computation time. 
+housingdataset2 <- head(housingdataset, 1000)
+ordinal_features <- c('airconditioningtypeid', 'buildingqualitytypeid','buildingclasstypeid', 'heatingorsystemtypeid','pooltypeid10', 'pooltypeid7', 'propertylandusetypeid','regionidzip')
+corHousingLandTax2 <- cor(data.matrix(housingdataset2 %>% select(one_of(ordinal_features, "landtaxvaluedollarcnt"))), method = "kendall", use = "pairwise.complete.obs")
+corrplot(corHousingLandTax2, method = "color", order="hclust")
+
+ordinal_features <- c('airconditioningtypeid', 'buildingqualitytypeid','buildingclasstypeid', 'heatingorsystemtypeid','pooltypeid10', 'pooltypeid7', 'propertylandusetypeid','regionidzip')
+corHousinghouseTax2 <- cor(data.matrix(housingdataset2 %>% select(one_of(ordinal_features, "structuretaxvaluedollarcnt"))), method = "kendall", use = "pairwise.complete.obs")
+corrplot(corHousingLandTax2, method = "color", order="hclust")
 
