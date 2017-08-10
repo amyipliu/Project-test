@@ -142,22 +142,23 @@ rm(dataset)
 ###########################################################################################################
 ############################################## END OF CLEANING ############################################
 ###########################################################################################################
+############################################### Start of EDA ##############################################
 
 #Create tableplot with all the variables for landtaxvaluedollarcnt
 colMtx <- matrix(names(housingdataset)[1:length(housingdataset)-1], nrow = 4)
 for (i in 1:ncol(colMtx)) {
-  tableplot(housingdata, 
+  tableplot(housingdataset, 
             select_string = c(colMtx[,i], "landtaxvaluedollarcnt"), 
-            sortCol = "taxvaluedollarcnt", decreasing = TRUE, 
+            sortCol = "landtaxvaluedollarcnt", decreasing = TRUE, 
             nBins = 30)
 }
 
 #Create tableplot with all the variables for structuretaxvaluedollarcnt
 colMtx <- matrix(names(housingdataset)[1:length(housingdataset)-1], nrow = 4)
 for (i in 1:ncol(colMtx)) {
-  tableplot(housingdata, 
-            select_string = c(colMtx[,i], "landtaxvaluedollarcnt"), 
-            sortCol = "taxvaluedollarcnt", decreasing = TRUE, 
+  tableplot(housingdataset, 
+            select_string = c(colMtx[,i], "structuretaxvaluedollarcnt"), 
+            sortCol = "structuretaxvaluedollarcnt", decreasing = TRUE, 
             nBins = 30)
 }
 
@@ -177,4 +178,45 @@ corrplot(corHousingLandTax2, method = "color", order="hclust")
 ordinal_features <- c('airconditioningtypeid', 'buildingqualitytypeid','buildingclasstypeid', 'heatingorsystemtypeid','pooltypeid10', 'pooltypeid7', 'propertylandusetypeid','regionidzip')
 corHousinghouseTax2 <- cor(data.matrix(housingdataset2 %>% select(one_of(ordinal_features, "structuretaxvaluedollarcnt"))), method = "kendall", use = "pairwise.complete.obs")
 corrplot(corHousingLandTax2, method = "color", order="hclust")
+
+### EDA ###
+housingdataset2 <- head(housingdataset, 10000)
+#unitcnt
+ggplot(housingdataset2, aes(x=log(unitcnt), log(structuretaxvaluedollarcnt)))+geom_point()+ggtitle("Unit count versus house taxes") +
+  theme(panel.background = element_rect(fill="white"))
+  
+#yearbuilt
+ggplot(housingdataset2, aes(x=yearbuilt, log(structuretaxvaluedollarcnt)))+geom_point()+ggtitle("Building year versus house taxes")+
+  theme(panel.background = element_rect(fill="white"))
+ggplot(housingdataset2, aes(x=yearbuilt))+geom_bar()+ggtitle("Building year of house")+
+  theme(panel.background = element_rect(fill="white"))
+
+#taxvaluedollarcnt
+ggplot(housingdataset2, aes(x=taxvaluedollarcnt))+geom_histogram(bins = 200)+ggtitle("Total Tax value") + xlim(c(0,1e6))+
+  theme(panel.background = element_rect(fill="white"))
+ggplot(housingdataset2, aes(x=log(taxvaluedollarcnt)))+geom_histogram(bins = 200)+ggtitle("Total Tax value") + xlim(c(5,17))+
+  theme(panel.background = element_rect(fill="white"))
+
+#structuretaxvaluedollarcnt
+ggplot(housingdataset2, aes(x=structuretaxvaluedollarcnt))+geom_histogram(bins = 200)+ggtitle("House Tax value") + xlim(c(0,1e6))+
+  theme(panel.background = element_rect(fill="white"))
+ggplot(housingdataset2, aes(x=log(structuretaxvaluedollarcnt)))+geom_histogram(bins = 200)+ggtitle("House Tax value") + xlim(c(5,17))+
+  theme(panel.background = element_rect(fill="white"))
+
+#landtaxvaluedollarcnt
+ggplot(housingdataset2, aes(x=landtaxvaluedollarcnt))+geom_histogram(bins = 200)+ggtitle("Land Tax value") + xlim(c(0,1e6))+
+  theme(panel.background = element_rect(fill="white"))
+ggplot(housingdataset2, aes(x=log(landtaxvaluedollarcnt)))+geom_histogram(bins = 200)+ggtitle("Land Tax value") + xlim(c(5,17))+
+  theme(panel.background = element_rect(fill="white"))
+
+#assessmentyear
+ggplot(housingdataset2, aes(x=assessmentyear))+geom_bar()+ggtitle("Assessment year of house")+
+  theme(panel.background = element_rect(fill="white"))
+housingdataset2$assessmentyear <- factor(housingdataset2$assessmentyear)
+ggplot(housingdataset2, aes(x=assessmentyear, y = log(taxvaluedollarcnt)))+geom_boxplot()+ggtitle("Assessment year of house")+
+  theme(panel.background = element_rect(fill="white"))
+ggplot(housingdataset2, aes(x=assessmentyear, y = log(landtaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Assessment year of house")+
+  theme(panel.background = element_rect(fill="white"))
+ggplot(housingdataset2, aes(x=assessmentyear, y = log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Assessment year of house")+
+  theme(panel.background = element_rect(fill="white"))
 
