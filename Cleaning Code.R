@@ -9,6 +9,7 @@ dataset <- fread("C:/Users/Steven Jongerden/Desktop/Machine Learning/Data/proper
 
 #Remove completely missing rows from the dataset
 dataset <- dataset[!is.na(regionidcounty),]
+dataset <- dataset[dataset$regionidcounty==3101,]
 
 #Remove rows that have empty taxvaluedollarcnt as these cannot be predicted
 dataset <- dataset[!is.na(taxvaluedollarcnt),]
