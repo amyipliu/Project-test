@@ -175,49 +175,8 @@ ordinal_features <- c('airconditioningtypeid', 'buildingqualitytypeid','building
 corHousinghouseTax2 <- cor(data.matrix(housingdataset %>% select(one_of(ordinal_features, "structuretaxvaluedollarcnt"))), method = "kendall", use = "pairwise.complete.obs")
 corrplot(corHousingLandTax2, method = "color", order="hclust")
 
-### EDA ###
-#unitcnt
-ggplot(housingdataset, aes(x=log(unitcnt), log(structuretaxvaluedollarcnt)))+geom_point()+ggtitle("Unit count versus house taxes") +
-  theme(panel.background = element_rect(fill="white"))
-  
-#yearbuilt
-ggplot(housingdataset, aes(x=yearbuilt, log(structuretaxvaluedollarcnt)))+geom_point()+ggtitle("Building year versus house taxes")+
-  theme(panel.background = element_rect(fill="white"))
-ggplot(housingdataset, aes(x=yearbuilt))+geom_bar()+ggtitle("Building year of house")+
-  theme(panel.background = element_rect(fill="white"))
-
-#taxvaluedollarcnt
-ggplot(housingdataset, aes(x=taxvaluedollarcnt))+geom_histogram(bins = 200)+ggtitle("Total Tax value") + xlim(c(0,1e6))+
-  theme(panel.background = element_rect(fill="white"))
-ggplot(housingdataset, aes(x=log(taxvaluedollarcnt)))+geom_histogram(bins = 200)+ggtitle("Total Tax value") + xlim(c(5,17))+
-  theme(panel.background = element_rect(fill="white"))
-
-#structuretaxvaluedollarcnt
-ggplot(housingdataset, aes(x=structuretaxvaluedollarcnt))+geom_histogram(bins = 200)+ggtitle("House Tax value") + xlim(c(0,1e6))+
-  theme(panel.background = element_rect(fill="white"))
-ggplot(housingdataset, aes(x=log(structuretaxvaluedollarcnt)))+geom_histogram(bins = 200)+ggtitle("House Tax value") + xlim(c(5,17))+
-  theme(panel.background = element_rect(fill="white"))
-
-#landtaxvaluedollarcnt
-ggplot(housingdataset, aes(x=landtaxvaluedollarcnt))+geom_histogram(bins = 200)+ggtitle("Land Tax value") + xlim(c(0,1e6))+
-  theme(panel.background = element_rect(fill="white"))
-ggplot(housingdataset, aes(x=log(landtaxvaluedollarcnt)))+geom_histogram(bins = 200)+ggtitle("Land Tax value") + xlim(c(5,17))+
-  theme(panel.background = element_rect(fill="white"))
-
-#assessmentyear
-ggplot(housingdataset, aes(x=assessmentyear))+geom_bar()+ggtitle("Assessment year of house")+
-  theme(panel.background = element_rect(fill="white"))
-housingdataset$assessmentyear <- factor(housingdataset$assessmentyear)
-ggplot(housingdataset, aes(x=assessmentyear, y = log(taxvaluedollarcnt)))+geom_boxplot()+ggtitle("Assessment year of house")+
-  theme(panel.background = element_rect(fill="white"))
-ggplot(housingdataset, aes(x=assessmentyear, y = log(landtaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Assessment year of house")+
-  theme(panel.background = element_rect(fill="white"))
-ggplot(housingdataset, aes(x=assessmentyear, y = log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Assessment year of house")+
-  theme(panel.background = element_rect(fill="white"))
-
 
 ####################### MODEL BUILDING ########################
-library(car)
 housingdataset$airconditioningtypeid <- as.character(housingdataset$airconditioningtypeid)
 housingdataset$heatingorsystemtypeid <- as.character(housingdataset$heatingorsystemtypeid)
 housingdataset[housingdataset$airconditioningtypeid==0,"airconditioningtypeid"] <- "None"
@@ -231,7 +190,38 @@ housingdataset[housingdataset$heatingorsystemtypeid==20,"heatingorsystemtypeid"]
 housingdataset$heatingorsystemtypeid <- factor(housingdataset$heatingorsystemtypeid)
 housingdataset$airconditioningtypeid <- factor(housingdataset$airconditioningtypeid)
 
+### EDA for model as proof for hypothesized relationship. 
+ggplot(housingdataset, aes(airconditioningtypeid, log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Airconditioning Type")
+t.test(housingdataset$structuretaxvaluedollarcnt ~ housingdataset$airconditioningtypeid)
+#Significant Difference 
+ggplot(housingdataset, aes(bathroomcnt, log(structuretaxvaluedollarcnt)))+geom_point()+ggtitle("Bathroom count")
+cor.test(log(housingdataset$structuretaxvaluedollarcnt), housingdataset$bathroomcnt)
+#Significant relation 0.59
+ggplot(housingdataset, aes(bedroomcnt, log(structuretaxvaluedollarcnt)))+geom_point()+ggtitle("Bedroomcnt count")
+cor.test(log(housingdataset$structuretaxvaluedollarcnt), housingdataset$bedroomcnt)
+#Significant relation 0.31
+ggplot(housingdataset, aes(factor(buildingqualitytypeid), log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Building Qualitytype")
+cor.test(housingdataset$structuretaxvaluedollarcnt, housingdataset$buildingqualitytypeid)
+#Significant, however, inverse as expected relationship
+ggplot(housingdataset, aes(log(calculatedfinishedsquarefeet), log(structuretaxvaluedollarcnt)))+geom_point()+ggtitle("Size of the house")
+cor.test(log(housingdataset$structuretaxvaluedollarcnt), housingdataset$calculatedfinishedsquarefeet)
+#Significant relationship 0.58
+ggplot(housingdataset, aes(factor(heatingorsystemtypeid), log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Heating System")
+ggplot(housingdataset, aes(factor(poolcnt), log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Number of Pools")
+t.test(housingdataset$structuretaxvaluedollarcnt ~ housingdataset$poolcnt)
+#Significant Difference 
+ggplot(housingdataset, aes(factor(yearbuilt), log(structuretaxvaluedollarcnt)))+geom_point()+ggtitle("Year Build")
+cor.test(log(housingdataset$structuretaxvaluedollarcnt), housingdataset$yearbuilt)
+#Significant relationship 0.41
+ggplot(housingdataset, aes(factor(numberofstories), log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Number of floors")
+cor.test(log(housingdataset$structuretaxvaluedollarcnt), housingdataset$numberofstories)
+#Significant relationship 0.009
+
+
+
+######Model estimation########
 library(caret)
+library(car)
 set.seed(0)
 folds = createFolds(housingdataset$parcelid, 5)
 test = housingdataset[folds[[1]], ]
@@ -239,8 +229,8 @@ train = housingdataset[-folds[[1]], ]
 
 #Linear model with Box Cox transformation
 #Model estimation normal
-model <- lm(structuretaxvaluedollarcnt~airconditioningtypeid + bathroomcnt + bedroomcnt + buildingqualitytypeid +
-              calculatedfinishedsquarefeet + heatingorsystemtypeid + poolcnt + yearbuilt + numberofstories + 
+model <- lm(structuretaxvaluedollarcnt~airconditioningtypeid + bathroomcnt + bedroomcnt + 
+              calculatedfinishedsquarefeet + heatingorsystemtypeid + poolcnt + yearbuilt + 
               regionidzip + unitcnt, data = train)
 bc <- boxCox(model)
 lambda = bc$x[which(bc$y == max(bc$y))]
@@ -249,17 +239,16 @@ lambda
 #Model estimation with box coxs transformation 
 structuretaxvaluedollarcnt.bc = (train$structuretaxvaluedollarcnt^lambda - 1)/lambda
 
-model2 <- lm(structuretaxvaluedollarcnt.bc~airconditioningtypeid + bathroomcnt + bedroomcnt + buildingqualitytypeid +
-              calculatedfinishedsquarefeet + heatingorsystemtypeid + poolcnt + yearbuilt + numberofstories + 
+model2 <- lm(structuretaxvaluedollarcnt.bc~airconditioningtypeid + bathroomcnt + bedroomcnt + 
+              calculatedfinishedsquarefeet + heatingorsystemtypeid + poolcnt + yearbuilt  + 
                unitcnt+regionidzip , data = train)
 
-#REducte for computational testing
-train <- train[1:5000,c("structuretaxvaluedollarcnt", "airconditioningtypeid", "bathroomcnt", "bedroomcnt","buildingqualitytypeid",
-  "calculatedfinishedsquarefeet", "heatingorsystemtypeid", "poolcnt", "yearbuilt", "numberofstories", 
-                        "unitcnt","regionidzip")]
-structuretaxvaluedollarcnt.bc = (train$structuretaxvaluedollarcnt^lambda - 1)/lambda
+colnames(train)
 
-train$structuretaxvaluedollarcnt <- NULL
+#Reduced for computational testing
+train <- train[,c("airconditioningtypeid", "bathroomcnt", "bedroomcnt",
+                           "calculatedfinishedsquarefeet", "heatingorsystemtypeid", "poolcnt", "yearbuilt", 
+                           "unitcnt","regionidzip")]
 
 library(MASS)
 model.empty = lm(structuretaxvaluedollarcnt.bc ~ 1, data = train)
@@ -269,10 +258,22 @@ model3 = step(model2, scope, direction = "both", k = 2)
 
 #Summary and conditions verification
 summary(model)
+vif(model)
+BIC(model)
+bptest(model)
+bgtest(model)
+
 summary(model2)
 vif(model2)
-BIC(model)
 BIC(model2)
+bptest(model2)
+bgtest(model2)
+
+summary(model3)
+vif(model3)
+BIC(model3)
+bptest(model3)
+bgtest(model3)
 
 library(lmtest)
 #Breusch-Pagan test for heteroskedasticity -> violated
@@ -291,7 +292,7 @@ url_robust <- "https://raw.githubusercontent.com/IsidoreBeautrelet/economictheor
 eval(parse(text = getURL(url_robust, ssl.verifypeer = FALSE)),
      envir=.GlobalEnv)
 
-modelresults <- summary(model2, robust=T)
+modelresults <- summary(model3, robust=T)
 modelresults
 
 
