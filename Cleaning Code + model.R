@@ -189,6 +189,21 @@ housingdataset[housingdataset$heatingorsystemtypeid==0,"heatingorsystemtypeid"] 
 housingdataset[housingdataset$heatingorsystemtypeid==20,"heatingorsystemtypeid"] <- "Other"
 housingdataset$heatingorsystemtypeid <- factor(housingdataset$heatingorsystemtypeid)
 housingdataset$airconditioningtypeid <- factor(housingdataset$airconditioningtypeid)
+housingdataset[housingdataset$propertylandusetypeid==31, "propertylandusetypeid"] <-"Commercial/Office/Residential Mixed Used"
+housingdataset[housingdataset$propertylandusetypeid==47, "propertylandusetypeid"] <-"Store/Office (Mixed Use)"
+housingdataset[housingdataset$propertylandusetypeid==246, "propertylandusetypeid"] <-"Duplex"
+housingdataset[housingdataset$propertylandusetypeid==247, "propertylandusetypeid"] <-"Triplex"
+housingdataset[housingdataset$propertylandusetypeid==248, "propertylandusetypeid"] <-"Quadruplex"
+housingdataset[housingdataset$propertylandusetypeid==260, "propertylandusetypeid"] <-"Residential General"
+housingdataset[housingdataset$propertylandusetypeid==261, "propertylandusetypeid"] <-"Single Family Residential"
+housingdataset[housingdataset$propertylandusetypeid==263, "propertylandusetypeid"] <-"Mobile Home"
+housingdataset[housingdataset$propertylandusetypeid==264, "propertylandusetypeid"] <-"Townhouse"
+housingdataset[housingdataset$propertylandusetypeid==266, "propertylandusetypeid"] <-"Condominium"
+housingdataset[housingdataset$propertylandusetypeid==267, "propertylandusetypeid"] <-"Cooperative"
+housingdataset[housingdataset$propertylandusetypeid==269, "propertylandusetypeid"] <-"Planned Unit Development"
+housingdataset$propertylandusetypeid <- factor(housingdataset$propertylandusetypeid)
+
+
 
 ### EDA for model as proof for hypothesized relationship. 
 ggplot(housingdataset, aes(airconditioningtypeid, log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Airconditioning Type")
@@ -216,10 +231,10 @@ cor.test(log(housingdataset$structuretaxvaluedollarcnt), housingdataset$yearbuil
 ggplot(housingdataset, aes(factor(numberofstories), log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Number of floors")
 cor.test(log(housingdataset$structuretaxvaluedollarcnt), housingdataset$numberofstories)
 #Significant relationship 0.009
+ggplot(housingdataset, aes(factor(propertylandusetypeid), log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Housing Type")
 
 
-
-######Model estimation########
+######Model estimation for house taxes########
 library(caret)
 library(car)
 set.seed(0)
@@ -231,7 +246,7 @@ train = housingdataset[-folds[[1]], ]
 #Model estimation normal
 model <- lm(structuretaxvaluedollarcnt~airconditioningtypeid + bathroomcnt + bedroomcnt + 
               calculatedfinishedsquarefeet + heatingorsystemtypeid + poolcnt + yearbuilt + 
-              regionidzip + unitcnt, data = train)
+              + propertylandusetypeid + unitcnt + regionidzip, data = train)
 bc <- boxCox(model)
 lambda = bc$x[which(bc$y == max(bc$y))]
 lambda
@@ -241,14 +256,14 @@ structuretaxvaluedollarcnt.bc = (train$structuretaxvaluedollarcnt^lambda - 1)/la
 
 model2 <- lm(structuretaxvaluedollarcnt.bc~airconditioningtypeid + bathroomcnt + bedroomcnt + 
               calculatedfinishedsquarefeet + heatingorsystemtypeid + poolcnt + yearbuilt  + 
-               unitcnt+regionidzip , data = train)
+              propertylandusetypeid + unitcnt+regionidzip , data = train)
 
 colnames(train)
 
 #Reduced for computational testing
 train <- train[,c("airconditioningtypeid", "bathroomcnt", "bedroomcnt",
                            "calculatedfinishedsquarefeet", "heatingorsystemtypeid", "poolcnt", "yearbuilt", 
-                           "unitcnt","regionidzip")]
+                           "unitcnt", "propertylandusetypeid","regionidzip")]
 
 library(MASS)
 model.empty = lm(structuretaxvaluedollarcnt.bc ~ 1, data = train)
@@ -257,6 +272,7 @@ scope = list(lower = formula(model.empty), upper = formula(model.full))
 model3 = step(model2, scope, direction = "both", k = 2)
 
 #Summary and conditions verification
+library(lmtest)
 summary(model)
 vif(model)
 BIC(model)
@@ -275,14 +291,6 @@ BIC(model3)
 bptest(model3)
 bgtest(model3)
 
-library(lmtest)
-#Breusch-Pagan test for heteroskedasticity -> violated
-bptest(model2)
-#Breusch-Godfrey test for serial correlation -> good
-bgtest(model2)
-#Conditions verification
-plot(model2)
-
 #Correction for heteroskedasticity:
 #White standard errors:
 library(RCurl)
@@ -292,9 +300,49 @@ url_robust <- "https://raw.githubusercontent.com/IsidoreBeautrelet/economictheor
 eval(parse(text = getURL(url_robust, ssl.verifypeer = FALSE)),
      envir=.GlobalEnv)
 
-modelresults <- summary(model3, robust=T)
-modelresults
+modelresultsHouseTaxes <- summary(model3, robust=T)
+modelresultsHouseTaxes
+#Model R2: 0.616
+
+##### END MODEL BUILDING HOUSE TAXES ####
+
+##### START MODEL BUILDING LAND TAXES #####
+
+ggplot(housingdataset, aes(propertylandusetypeid, log(landtaxvaluedollarcnt)))+geom_boxplot()+ggtitle("propertylandusetypeid")
+
+ggplot(housingdataset, aes(log(calculatedfinishedsquarefeet), log(landtaxvaluedollarcnt)))+geom_point()+ggtitle("calculatedfinishedsquarefeet")
+cor.test(log(housingdataset$landtaxvaluedollarcnt), housingdataset$calculatedfinishedsquarefeet)
+#Significant relationship 0.33
+
+set.seed(0)
+folds = createFolds(housingdataset$parcelid, 5)
+test = housingdataset[folds[[1]], ]
+train = housingdataset[-folds[[1]], ]
 
 
+model4 <- lm(landtaxvaluedollarcnt ~ propertylandusetypeid + calculatedfinishedsquarefeet +
+              regionidzip, data = train)
 
+bc2 <- boxCox(model4)
+lambda2 = bc$x[which(bc2$y == max(bc2$y))]
+lambda2
+landtaxvaluedollarcnt.bc = (train$landtaxvaluedollarcnt^lambda - 1)/lambda
 
+model5 <- lm(landtaxvaluedollarcnt.bc ~ propertylandusetypeid + calculatedfinishedsquarefeet +
+               regionidzip, data = train)
+
+summary(model4)
+vif(model4)
+BIC(model4)
+bptest(model4)
+bgtest(model4)
+
+summary(model5)
+vif(model5)
+BIC(model5)
+bptest(model5)
+bgtest(model5)
+
+modelresultsLandTaxes <- summary(model5, robust=T)
+modelresultsLandTaxes
+#R2 of 0.4254
