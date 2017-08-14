@@ -346,3 +346,11 @@ bgtest(model5)
 modelresultsLandTaxes <- summary(model5, robust=T)
 modelresultsLandTaxes
 #R2 of 0.4254
+
+
+t.test(train$structuretaxvaluedollarcnt, train$landtaxvaluedollarcnt)
+ggplot(train)+geom_density(aes(x=structuretaxvaluedollarcnt), fill='red')+xlim(c(0,2e6)) +
+  geom_density(aes(x=landtaxvaluedollarcnt), fill='green')+xlim(c(0,2e6))
+
+summary(train$structuretaxvaluedollarcnt)
+summary(train$landtaxvaluedollarcnt)
