@@ -68,7 +68,7 @@ dataset[is.na(dataset$structuretaxvaluedollarcnt),"structuretaxvaluedollarcnt"] 
 dataset[is.na(dataset$landtaxvaluedollarcnt),"landtaxvaluedollarcnt"] <- dataset[is.na(dataset$landtaxvaluedollarcnt),"taxvaluedollarcnt"] - dataset[is.na(dataset$landtaxvaluedollarcnt),"structuretaxvaluedollarcnt"]
 
 dataset$propertyzoningdesc = as.character(dataset$propertyzoningdesc)
-dataset$propertyzoningdesc = as.factor(dataset$propertyzoningdesc)
+dataset$propertyzoningdesc = factor(dataset$propertyzoningdesc)
 dataset$regionidcounty <- factor(dataset$regionidcounty)
 dataset$regionidcity <- factor(dataset$regionidcity)
 dataset$regionidzip <- factor(dataset$regionidzip)
@@ -114,6 +114,32 @@ dataset$yardbuildingsqft17<- NULL
 dataset$yardbuildingsqft26<- NULL
 dataset$fips <-NULL
 dataset$regionidcounty <- NULL
+
+dataset$airconditioningtypeid <- as.character(dataset$airconditioningtypeid)
+dataset$heatingorsystemtypeid <- as.character(dataset$heatingorsystemtypeid)
+dataset[dataset$airconditioningtypeid==0,"airconditioningtypeid"] <- "None"
+dataset[dataset$airconditioningtypeid==1,"airconditioningtypeid"] <- "Central"
+dataset[dataset$airconditioningtypeid==9,"airconditioningtypeid"] <- "Central"
+dataset[dataset$airconditioningtypeid==13,"airconditioningtypeid"] <- "Central"
+dataset[dataset$heatingorsystemtypeid==2,"heatingorsystemtypeid"] <- "Central"
+dataset[dataset$heatingorsystemtypeid==7,"heatingorsystemtypeid"] <- "Floor"
+dataset[dataset$heatingorsystemtypeid==0,"heatingorsystemtypeid"] <- "Other"
+dataset[dataset$heatingorsystemtypeid==20,"heatingorsystemtypeid"] <- "Other"
+dataset$heatingorsystemtypeid <- factor(dataset$heatingorsystemtypeid)
+dataset$airconditioningtypeid <- factor(dataset$airconditioningtypeid)
+dataset[dataset$propertylandusetypeid==31, "propertylandusetypeid"] <-"Commercial/Office/Residential Mixed Used"
+dataset[dataset$propertylandusetypeid==47, "propertylandusetypeid"] <-"Store/Office (Mixed Use)"
+dataset[dataset$propertylandusetypeid==246, "propertylandusetypeid"] <-"Duplex"
+dataset[dataset$propertylandusetypeid==247, "propertylandusetypeid"] <-"Triplex"
+dataset[dataset$propertylandusetypeid==248, "propertylandusetypeid"] <-"Quadruplex"
+dataset[dataset$propertylandusetypeid==260, "propertylandusetypeid"] <-"Residential General"
+dataset[dataset$propertylandusetypeid==261, "propertylandusetypeid"] <-"Single Family Residential"
+dataset[dataset$propertylandusetypeid==263, "propertylandusetypeid"] <-"Mobile Home"
+dataset[dataset$propertylandusetypeid==264, "propertylandusetypeid"] <-"Townhouse"
+dataset[dataset$propertylandusetypeid==266, "propertylandusetypeid"] <-"Condominium"
+dataset[dataset$propertylandusetypeid==267, "propertylandusetypeid"] <-"Cooperative"
+dataset[dataset$propertylandusetypeid==269, "propertylandusetypeid"] <-"Planned Unit Development"
+dataset$propertylandusetypeid <- factor(dataset$propertylandusetypeid)
 
 #Create housing dataset on rule roomtcount >0
 housingdataset <- dataset[dataset$structuretaxvaluedollarcnt!=0,]
@@ -176,35 +202,6 @@ corHousinghouseTax2 <- cor(data.matrix(housingdataset %>% select(one_of(ordinal_
 corrplot(corHousingLandTax2, method = "color", order="hclust")
 
 
-####################### MODEL BUILDING ########################
-housingdataset$airconditioningtypeid <- as.character(housingdataset$airconditioningtypeid)
-housingdataset$heatingorsystemtypeid <- as.character(housingdataset$heatingorsystemtypeid)
-housingdataset[housingdataset$airconditioningtypeid==0,"airconditioningtypeid"] <- "None"
-housingdataset[housingdataset$airconditioningtypeid==1,"airconditioningtypeid"] <- "Central"
-housingdataset[housingdataset$airconditioningtypeid==9,"airconditioningtypeid"] <- "Central"
-housingdataset[housingdataset$airconditioningtypeid==13,"airconditioningtypeid"] <- "Central"
-housingdataset[housingdataset$heatingorsystemtypeid==2,"heatingorsystemtypeid"] <- "Central"
-housingdataset[housingdataset$heatingorsystemtypeid==7,"heatingorsystemtypeid"] <- "Floor"
-housingdataset[housingdataset$heatingorsystemtypeid==0,"heatingorsystemtypeid"] <- "Other"
-housingdataset[housingdataset$heatingorsystemtypeid==20,"heatingorsystemtypeid"] <- "Other"
-housingdataset$heatingorsystemtypeid <- factor(housingdataset$heatingorsystemtypeid)
-housingdataset$airconditioningtypeid <- factor(housingdataset$airconditioningtypeid)
-housingdataset[housingdataset$propertylandusetypeid==31, "propertylandusetypeid"] <-"Commercial/Office/Residential Mixed Used"
-housingdataset[housingdataset$propertylandusetypeid==47, "propertylandusetypeid"] <-"Store/Office (Mixed Use)"
-housingdataset[housingdataset$propertylandusetypeid==246, "propertylandusetypeid"] <-"Duplex"
-housingdataset[housingdataset$propertylandusetypeid==247, "propertylandusetypeid"] <-"Triplex"
-housingdataset[housingdataset$propertylandusetypeid==248, "propertylandusetypeid"] <-"Quadruplex"
-housingdataset[housingdataset$propertylandusetypeid==260, "propertylandusetypeid"] <-"Residential General"
-housingdataset[housingdataset$propertylandusetypeid==261, "propertylandusetypeid"] <-"Single Family Residential"
-housingdataset[housingdataset$propertylandusetypeid==263, "propertylandusetypeid"] <-"Mobile Home"
-housingdataset[housingdataset$propertylandusetypeid==264, "propertylandusetypeid"] <-"Townhouse"
-housingdataset[housingdataset$propertylandusetypeid==266, "propertylandusetypeid"] <-"Condominium"
-housingdataset[housingdataset$propertylandusetypeid==267, "propertylandusetypeid"] <-"Cooperative"
-housingdataset[housingdataset$propertylandusetypeid==269, "propertylandusetypeid"] <-"Planned Unit Development"
-housingdataset$propertylandusetypeid <- factor(housingdataset$propertylandusetypeid)
-
-
-
 ### EDA for model as proof for hypothesized relationship. 
 ggplot(housingdataset, aes(airconditioningtypeid, log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Airconditioning Type")
 t.test(housingdataset$structuretaxvaluedollarcnt ~ housingdataset$airconditioningtypeid)
@@ -233,6 +230,7 @@ cor.test(log(housingdataset$structuretaxvaluedollarcnt), housingdataset$numberof
 #Significant relationship 0.009
 ggplot(housingdataset, aes(factor(propertylandusetypeid), log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Housing Type")
 
+####################### MODEL BUILDING ########################
 
 ######Model estimation for house taxes########
 library(caret)
@@ -246,7 +244,7 @@ train = housingdataset[-folds[[1]], ]
 #Model estimation normal
 model <- lm(structuretaxvaluedollarcnt~airconditioningtypeid + bathroomcnt + bedroomcnt + 
               calculatedfinishedsquarefeet + heatingorsystemtypeid + poolcnt + yearbuilt + 
-              + propertylandusetypeid + unitcnt + regionidzip, data = train)
+              + propertylandusetypeid + unitcnt, data = train)
 bc <- boxCox(model)
 lambda = bc$x[which(bc$y == max(bc$y))]
 lambda
@@ -278,18 +276,24 @@ vif(model)
 BIC(model)
 bptest(model)
 bgtest(model)
+predictedmodel1 = predict(model, newdata = test)
+MSEModel1 <- mean((predictedmodel1 - test$structuretaxvaluedollarcnt)^2)
 
 summary(model2)
 vif(model2)
 BIC(model2)
 bptest(model2)
 bgtest(model2)
+predictedmodel2 = predict(model2, newdata = test)
+MSEModel2 <- mean((predictedmodel2 - test$structuretaxvaluedollarcnt)^2)
 
 summary(model3)
 vif(model3)
 BIC(model3)
 bptest(model3)
 bgtest(model3)
+predictedmodel3 = predict(model3, newdata = test)
+MSEModel3 <- mean((predictedmodel2 - test$structuretaxvaluedollarcnt)^2)
 
 #Correction for heteroskedasticity:
 #White standard errors:
@@ -354,3 +358,52 @@ ggplot(train)+geom_density(aes(x=structuretaxvaluedollarcnt), fill='red')+xlim(c
 
 summary(train$structuretaxvaluedollarcnt)
 summary(train$landtaxvaluedollarcnt)
+
+
+
+
+
+
+######### LASSO Regression ###### 
+library(glmnet)
+library(caret)
+set.seed(0)
+folds = createFolds(housingdataset$parcelid, 5)
+test = housingdataset[folds[[1]], ]
+train = housingdataset[-folds[[1]], ]
+
+train <- train[,c("structuretaxvaluedollarcnt", "airconditioningtypeid", "bathroomcnt", "bedroomcnt",
+                  "calculatedfinishedsquarefeet", "heatingorsystemtypeid", "poolcnt", "yearbuilt", 
+                  "unitcnt", "propertylandusetypeid","regionidzip")]
+
+test <- test[,c("structuretaxvaluedollarcnt", "airconditioningtypeid", "bathroomcnt", "bedroomcnt",
+                  "calculatedfinishedsquarefeet", "heatingorsystemtypeid", "poolcnt", "yearbuilt", 
+                  "unitcnt", "propertylandusetypeid","regionidzip")]
+
+train <-train[complete.cases(train),]
+test <-test[complete.cases(test),]
+
+x = model.matrix(structuretaxvaluedollarcnt ~ ., train)[, -1] 
+y = train$structuretaxvaluedollarcnt
+grid = 10^seq(5, -2, length = 100)
+lasso.models = glmnet(x, y, alpha = 1, lambda = grid)
+
+plot(lasso.models, xvar = "lambda", label = TRUE, main = "Lasso Regression")
+
+set.seed(0)
+cv.lasso.out = cv.glmnet(x, y, lambda = grid, alpha = 1, nfolds = 10)
+
+plot(cv.lasso.out, main = "Lasso Regression\n")
+bestlambda.lasso = cv.lasso.out$lambda.min
+bestlambda.lasso
+log(bestlambda.lasso)
+
+newx = model.matrix(structuretaxvaluedollarcnt ~ ., test)[, -1] 
+lasso.bestlambdatrain = predict(cv.lasso.out, s = -4.60517, newx = newx)
+mean((lasso.bestlambdatrain - test$structuretaxvaluedollarcnt)^2)
+
+
+
+
+
+
