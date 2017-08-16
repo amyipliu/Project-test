@@ -63,7 +63,12 @@ dataset[is.na(dataset$finishedsquarefeet13),"finishedsquarefeet13"] <- 0
 dataset[is.na(dataset$finishedsquarefeet15),"finishedsquarefeet15"] <- 0
 dataset[is.na(dataset$finishedsquarefeet50),"finishedsquarefeet50"] <- 0
 dataset[is.na(dataset$unitcnt),"unitcnt"] <- 0
-
+dataset$hashottuborspa <- ifelse(dataset$hashottuborspa == "true", 1, 0)
+dataset$taxdelinquencyflag <- ifelse(dataset$taxdelinquencyflag == "Y", 1, 0)
+dataset[is.na(dataset$taxdelinquencyyear),"taxdelinquencyyear"] <- 0
+dataset[is.na(dataset$yearbuilt), "yearbuilt"] <- mean(dataset$yearbuilt, na.rm = TRUE)
+dataset[is.na(dataset$taxamount), "taxamount"] <- 0.02001632 * dataset[is.na(dataset$taxamount), "taxvaluedollarcnt"]
+ 
 dataset[is.na(dataset$structuretaxvaluedollarcnt),"structuretaxvaluedollarcnt"] <- dataset[is.na(dataset$structuretaxvaluedollarcnt),"taxvaluedollarcnt"] - dataset[is.na(dataset$structuretaxvaluedollarcnt),"landtaxvaluedollarcnt"]
 dataset[is.na(dataset$landtaxvaluedollarcnt),"landtaxvaluedollarcnt"] <- dataset[is.na(dataset$landtaxvaluedollarcnt),"taxvaluedollarcnt"] - dataset[is.na(dataset$landtaxvaluedollarcnt),"structuretaxvaluedollarcnt"]
 
@@ -83,13 +88,17 @@ dataset$pooltypeid2 <- factor(dataset$pooltypeid2)
 dataset$pooltypeid7 <- factor(dataset$pooltypeid7)
 dataset$storytypeid <- factor(dataset$storytypeid)
 dataset$typeconstructiontypeid <- factor(dataset$typeconstructiontypeid)
+dataset$transactiondate <- base::as.Date(dataset$transactiondate)
+dataset$hashottuborspa <- factor(dataset$hashottuborspa)
+dataset$propertycountylandusecode <- factor(dataset$propertycountylandusecode)
+dataset$taxdelinquencyflag <- factor(dataset$taxdelinquencyflag)
 
 dataset <- dataset[!is.na(dataset$structuretaxvaluedollarcnt),]
 dataset <- dataset[!is.na(dataset$landtaxvaluedollarcnt),]
 
 #Compute missing values in the cleaned data set  
 precentageallclean <- data.frame(lapply(dataset, function(x) sum(is.na(x))/(sum(is.na(x))+sum(!is.na(x)))))
-classtest <- data.frame(lapply(dataset, function(x) class(x)))
+classtest <- data.frame(sapply(dataset, function(x) class(x)))
 
 #Remove columns that are empty, and have no information
 
@@ -114,6 +123,8 @@ dataset$yardbuildingsqft17<- NULL
 dataset$yardbuildingsqft26<- NULL
 dataset$fips <-NULL
 dataset$regionidcounty <- NULL
+dataset$fireplaceflag <- NULL
+dataset$propertyzoningdesc <- NULL
 
 dataset$airconditioningtypeid <- as.character(dataset$airconditioningtypeid)
 dataset$heatingorsystemtypeid <- as.character(dataset$heatingorsystemtypeid)
@@ -146,13 +157,13 @@ housingdataset <- dataset[dataset$structuretaxvaluedollarcnt!=0,]
 percentagehous <- data.frame(lapply(housingdataset, function(x) sum(is.na(x))/(sum(is.na(x))+sum(!is.na(x)))))
 
 #Create land dataset on rule ....
-landdataset <- dataset[!is.na(dataset$regionidzip) & !is.na(dataset$yearbuilt),]
-percentageland <- data.frame(lapply(dataset$landdataset, function(x) sum(is.na(x))/(sum(is.na(x))+sum(!is.na(x)))))  
+#landdataset <- dataset[!is.na(dataset$regionidzip) & !is.na(dataset$yearbuilt),]
+#percentageland <- data.frame(lapply(dataset$landdataset, function(x) sum(is.na(x))/(sum(is.na(x))+sum(!is.na(x)))))  
   
 rm(precentageall)
 rm(precentageallclean)
 rm(percentagehous)
-rm(percentageland)
+#rm(percentageland)
 rm(classtest)
 rm(dataset)
 rm(soldhouses)
@@ -258,7 +269,7 @@ MSEModel1 <- mean((predictedmodel1 - test$structuretaxvaluedollarcnt)^2, na.rm =
 RSSModel1 <- sum((predictedmodel1 - test$structuretaxvaluedollarcnt)^2, na.rm = TRUE)
 AdjR2Model1 <- 1-((RSSModel1/(length(test$structuretaxvaluedollarcnt)-length(summary(model)$coefficients)-1))/(TSS/(length(test$structuretaxvaluedollarcnt)-1)))
 AdjR2Model1
-RSSModel1
+
 
 #Model2 House Tax
 bc <- boxCox(model)
@@ -281,9 +292,18 @@ AdjR2Model2 <- 1-((RSSModel2/(length(test$structuretaxvaluedollarcnt)-length(sum
 AdjR2Model2
 
 #Model3 House Tax
-train <- train[,c("airconditioningtypeid", "bathroomcnt", "bedroomcnt",
-                           "calculatedfinishedsquarefeet", "heatingorsystemtypeid", "poolcnt", "yearbuilt", 
-                           "unitcnt", "propertylandusetypeid")]
+#train <- train[,c("airconditioningtypeid", "bathroomcnt", "bedroomcnt",
+#                           "calculatedfinishedsquarefeet", "heatingorsystemtypeid", "poolcnt", "yearbuilt", 
+#                           "unitcnt", "propertylandusetypeid", "buildingclasstypeid", "buildingqualitytypeid")]
+
+train$landtaxvaluedollarcnt <- NULL
+train$taxamount <- NULL
+train$structuretaxvaluedollarcnt <- NULL
+train$taxvaluedollarcnt <- NULL
+train$logerror <- NULL
+train$censustractandblock <- NULL
+
+
 
 library(MASS)
 model.empty = lm(structuretaxvaluedollarcnt.bc ~ 1, data = train)
@@ -327,7 +347,7 @@ cor.test(log(housingdataset$landtaxvaluedollarcnt), housingdataset$calculatedfin
 #Significant relationship 0.33
 
 set.seed(0)
-folds = createFolds(housingdataset$parcelid, 5)
+folds = createFolds(landdataset$parcelid, 5)
 test = housingdataset[folds[[1]], ]
 train = housingdataset[-folds[[1]], ]
 TSS <- sum((test$landtaxvaluedollarcnt - mean(test$landtaxvaluedollarcnt, na.rm =  TRUE))^2)
