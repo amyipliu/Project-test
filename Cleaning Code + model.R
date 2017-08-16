@@ -291,11 +291,7 @@ RSSModel2 <- sum((predictedmodel2 - test$structuretaxvaluedollarcnt)^2, na.rm = 
 AdjR2Model2 <- 1-((RSSModel2/(length(test$structuretaxvaluedollarcnt)-length(summary(model2)$coefficients)-1))/(TSS/(length(test$structuretaxvaluedollarcnt)-1)))
 AdjR2Model2
 
-#Model3 House Tax
-#train <- train[,c("airconditioningtypeid", "bathroomcnt", "bedroomcnt",
-#                           "calculatedfinishedsquarefeet", "heatingorsystemtypeid", "poolcnt", "yearbuilt", 
-#                           "unitcnt", "propertylandusetypeid", "buildingclasstypeid", "buildingqualitytypeid")]
-
+#Model 3
 train$landtaxvaluedollarcnt <- NULL
 train$taxamount <- NULL
 train$structuretaxvaluedollarcnt <- NULL
@@ -303,14 +299,17 @@ train$taxvaluedollarcnt <- NULL
 train$logerror <- NULL
 train$censustractandblock <- NULL
 
+#library(MASS)
+#model.empty = lm(structuretaxvaluedollarcnt.bc ~ 1, data = train)
+#model.full = lm(structuretaxvaluedollarcnt.bc ~ ., data = train)
+#scope = list(lower = formula(model.empty), upper = formula(model.full))
+#model3 = step(model2, scope, direction = "both", k = 2)
 
 
-library(MASS)
-model.empty = lm(structuretaxvaluedollarcnt.bc ~ 1, data = train)
-model.full = lm(structuretaxvaluedollarcnt.bc ~ ., data = train)
-scope = list(lower = formula(model.empty), upper = formula(model.full))
-model3 = step(model2, scope, direction = "both", k = 2)
-
+#best model
+model3 <- lm(structuretaxvaluedollarcnt.bc~airconditioningtypeid + bathroomcnt + calculatedfinishedsquarefeet + heatingorsystemtypeid +
+               poolcnt + yearbuilt  + finishedsquarefeet15 + taxdelinquencyflag + buildingqualitytypeid+ 
+               lotsizesquarefeet + rawcensustractandblock + longitude + latitude + taxdelinquencyyear, data = train)
 summary(model3)
 vif(model3)
 BIC(model3)
@@ -321,8 +320,6 @@ MSEModel3 <- mean((predictedmodel3 - test$structuretaxvaluedollarcnt)^2, na.rm =
 RSSModel3 <- sum((predictedmodel3 - test$structuretaxvaluedollarcnt)^2, na.rm = TRUE)
 AdjR2Model3 <- 1-((RSSModel3/(length(test$structuretaxvaluedollarcnt)-length(summary(model3)$coefficients)-1))/(TSS/(length(test$structuretaxvaluedollarcnt)-1)))
 AdjR2Model3
-
-
 
 #Correction for heteroskedasticity:
 #White standard errors:
@@ -336,7 +333,6 @@ eval(parse(text = getURL(url_robust, ssl.verifypeer = FALSE)),
 modelresultsHouseTaxes <- summary(model3, robust=T)
 modelresultsHouseTaxes
 ##### END MODEL BUILDING HOUSE TAXES ####
-
 
 
 
@@ -383,24 +379,10 @@ RSSModel5 <- sum((predictedmodel5 - test$landtaxvaluedollarcnt)^2, na.rm = TRUE)
 AdjR2Model5 <- 1-((RSSModel5/(length(test$landtaxvaluedollarcnt)-length(summary(model5)$coefficients)-1))/(TSS/(length(test$landtaxvaluedollarcnt)-1)))
 AdjR2Model5
 
-
 #Final Model Land Tax 
 modelresultsLandTaxes <- summary(model5, robust=T)
 modelresultsLandTaxes
 #R2 of 0.4254
-
-
-
-#### Results 
-
-Results <- data.frame(Model = c("House tax linear", "House tax box cox", "House tax box cox stepwise", "Land tax linear", "Land tax box cox"),
-                      AdjR2Train = c(summary(model)$adj.r.squared, summary(model2)$adj.r.squared, summary(model3)$adj.r.squared, summary(model4)$adj.r.squared, summary(model5)$adj.r.squared),
-                      AdjR2Test = c(AdjR2Model1, AdjR2Model2, AdjR2Model3, AdjR2Model4, AdjR2Model5)
-)
-Results
-
-
-
 
 
 
@@ -412,17 +394,16 @@ folds = createFolds(housingdataset$parcelid, 5)
 test = housingdataset[folds[[1]], ]
 train = housingdataset[-folds[[1]], ]
 
-train <- train[,c("structuretaxvaluedollarcnt", "airconditioningtypeid", "bathroomcnt", "bedroomcnt",
-                  "calculatedfinishedsquarefeet", "heatingorsystemtypeid", "poolcnt", "yearbuilt", 
-                  "unitcnt", "propertylandusetypeid")]
+train$landtaxvaluedollarcnt <- NULL
+train$taxamount <- NULL
+train$taxvaluedollarcnt <- NULL
+train$logerror <- NULL
+train$censustractandblock <- NULL
 
-test <- test[,c("structuretaxvaluedollarcnt", "airconditioningtypeid", "bathroomcnt", "bedroomcnt",
-                  "calculatedfinishedsquarefeet", "heatingorsystemtypeid", "poolcnt", "yearbuilt", 
-                  "unitcnt", "propertylandusetypeid")]
-
+#House Tax 
 train <-train[complete.cases(train),]
 test <-test[complete.cases(test),]
-TSS <- sum((test$structuretaxvaluedollarcnt - mean(test$structuretaxvaluedollarcnt, na.rm =  TRUE))^2)
+TSS <- sum((train$structuretaxvaluedollarcnt - mean(train$structuretaxvaluedollarcnt, na.rm =  TRUE))^2)
 
 x = model.matrix(structuretaxvaluedollarcnt ~ ., train)[, -1] 
 y = train$structuretaxvaluedollarcnt
@@ -430,18 +411,64 @@ grid = 10^seq(5, -2, length = 100)
 lasso.models = glmnet(x, y, alpha = 1, lambda = grid)
 
 plot(lasso.models, xvar = "lambda", label = TRUE, main = "Lasso Regression")
-
-set.seed(0)
 cv.lasso.out = cv.glmnet(x, y, lambda = grid, alpha = 1, nfolds = 10)
-
 plot(cv.lasso.out, main = "Lasso Regression\n")
 bestlambda.lasso = cv.lasso.out$lambda.min
 
-newx = model.matrix(structuretaxvaluedollarcnt ~ ., test)[, -1] 
-lassopredictmodel1 = predict(cv.lasso.out, s = bestlambda.lasso, newx = newx)
+x = model.matrix(structuretaxvaluedollarcnt ~ ., train)[, -1] 
+lassopredictmodel1 = predict(cv.lasso.out, s = bestlambda.lasso, newx = x)
 
-MSEModel6 <- mean((lassopredictmodel1 - test$structuretaxvaluedollarcnt)^2)
-RSSModel6 <- sum((lassopredictmodel1 - test$structuretaxvaluedollarcnt)^2, na.rm = TRUE)
+MSEModel6 <- mean((lassopredictmodel1 - train$structuretaxvaluedollarcnt)^2)
+RSSModel6 <- sum((lassopredictmodel1 - train$structuretaxvaluedollarcnt)^2, na.rm = TRUE)
 AdjR2Model6 <- 1-(RSSModel6/TSS)
 AdjR2Model6
+
+#Land tax 
+folds = createFolds(housingdataset$parcelid, 5)
+test = housingdataset[folds[[1]], ]
+train = housingdataset[-folds[[1]], ]
+
+train$structuretaxvaluedollarcnt <- NULL
+train$taxamount <- NULL
+train$taxvaluedollarcnt <- NULL
+train$logerror <- NULL
+train$censustractandblock <- NULL
+
+train <-train[complete.cases(train),]
+test <-test[complete.cases(test),]
+TSS <- sum((train$landtaxvaluedollarcnt - mean(train$landtaxvaluedollarcnt, na.rm =  TRUE))^2)
+
+x = model.matrix(landtaxvaluedollarcnt ~ ., train)[, -1] 
+y = train$landtaxvaluedollarcnt
+grid = 10^seq(5, -2, length = 100)
+lasso.models = glmnet(x, y, alpha = 1, lambda = grid)
+
+plot(lasso.models, xvar = "lambda", label = TRUE, main = "Lasso Regression")
+cv.lasso.out = cv.glmnet(x, y, lambda = grid, alpha = 1, nfolds = 10)
+plot(cv.lasso.out, main = "Lasso Regression\n")
+bestlambda.lasso = cv.lasso.out$lambda.min
+
+x = model.matrix(landtaxvaluedollarcnt ~ ., train)[, -1] 
+lassopredictmodel2 = predict(cv.lasso.out, s = bestlambda.lasso, newx = x)
+
+MSEModel7 <- mean((lassopredictmodel2 - train$landtaxvaluedollarcnt)^2)
+RSSModel7 <- sum((lassopredictmodel2 - train$landtaxvaluedollarcnt)^2, na.rm = TRUE)
+AdjR2Model7 <- 1-(RSSModel7/TSS)
+AdjR2Model7
+
+
+#### END MODELLING ####
+
+
+
+#### Results 
+
+Results <- data.frame(Model = c("House tax linear", "House tax box cox", "House tax box cox stepwise","House tax Lasso Regression",
+                                "Land tax linear", "Land tax box cox", "Land tax Lasso Regression"),
+                      AdjR2Train = round(c(summary(model)$adj.r.squared, summary(model2)$adj.r.squared, summary(model3)$adj.r.squared, AdjR2Model6, 
+                                     summary(model4)$adj.r.squared, summary(model5)$adj.r.squared, AdjR2Model7),3),
+                      AdjR2Test = round(c(AdjR2Model1, AdjR2Model2, AdjR2Model3, 0 , AdjR2Model4, AdjR2Model5, 0),3))
+Results[4,3] <- ""
+Results[7,3] <- ""
+Results
 
