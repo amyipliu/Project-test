@@ -299,6 +299,7 @@ train$taxvaluedollarcnt <- NULL
 train$logerror <- NULL
 train$censustractandblock <- NULL
 
+
 #library(MASS)
 #model.empty = lm(structuretaxvaluedollarcnt.bc ~ 1, data = train)
 #model.full = lm(structuretaxvaluedollarcnt.bc ~ ., data = train)
@@ -471,4 +472,55 @@ Results <- data.frame(Model = c("House tax linear", "House tax box cox", "House 
 Results[4,3] <- ""
 Results[7,3] <- ""
 Results
+
+
+
+
+
+#### Random Forests 
+library(tree)
+library(caret)
+library(tree)
+folds = createFolds(housingdataset$parcelid, 5)
+test = housingdataset[folds[[1]], ]
+train = housingdataset[-folds[[1]], ]
+
+train$regionidzip <- NULL
+train$landtaxvaluedollarcnt <- NULL
+train$taxamount <- NULL
+train$taxvaluedollarcnt <- NULL
+train$logerror <- NULL
+train$censustractandblock <- NULL
+train$propertycountylandusecode <- NULL
+train$transactiondate <- NULL
+
+train <-train[complete.cases(train),]
+test <-test[complete.cases(test),]
+
+TreePurchase = tree(structuretaxvaluedollarcnt ~ . , data = train)
+summary(TreePurchase)
+plot(TreePurchase)
+text(TreePurchase, pretty = 0)
+
+
+
+
+
+
+
+train <- train[1:400,]
+### RANDOM FOREST ###
+library(randomForest)
+TSS <- sum((train$structuretaxvaluedollarcnt - mean(train$structuretaxvaluedollarcnt, na.rm =  TRUE))^2)
+R2ModelTree <- numeric(29)
+for (i in 1:29) {
+  fit = randomForest(structuretaxvaluedollarcnt ~ ., data = train, mtry = i)
+  RSSRandom <- sum((fit$predicted - train$structuretaxvaluedollarcnt)^2, na.rm = TRUE)
+  R2Random <- 1 - RSSRandom/TSS
+  R2ModelTree[i] <- R2Random
+}
+R2ModelTree
+plot(R2ModelTree, type = 'line')
+
+
 
