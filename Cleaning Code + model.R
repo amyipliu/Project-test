@@ -1,14 +1,41 @@
+#######################################################################################################################################################################################
+#######################################################################################################################################################################################
+######################################################### Machine Learning Assignment for NYC Data Science Academy ####################################################################
+#######################################################################################################################################################################################
+#######################################################################################################################################################################################
+#Loading packages
 library(data.table)
 library(ggplot2)
 library(plyr)
 library(dplyr)
 library(tabplot)
 library(corrplot)
+library(caret)
+library(car)
+library(lmtest)
+library(tree)
+library(randomForest)
+library(glmnet)
+
+#######################################################################################################################################################################################
+############################################################################### Opening Data sets #################################################################################### 
+#######################################################################################################################################################################################
 
 #Open Data Set ##Set your file location of the properties data set##
 dataset <- fread("C:/Users/Steven Jongerden/Desktop/Machine Learning/Data/properties_2016.csv")
 soldhouses <- fread("C:/Users/Steven Jongerden/Desktop/Machine Learning/Data/train_2016_v2.csv", header = TRUE)
 dataset <- as.data.frame(left_join(soldhouses, dataset, by ="parcelid"))
+
+#Missing Information In Data Set
+MissingValues <- data.frame(missing = sapply(dataset, function(x) round(sum(is.na(x))/nrow(dataset),4)))
+MissingValues$variable <- rownames(MissingValues)
+MissingValues <- arrange(MissingValues, desc(missing)) %>% select(variable, missing)
+ggplot(MissingValues, aes(x=reorder(variable, missing), y = missing))+geom_bar(stat = "identity") + coord_flip() +
+  ylab("Percentage Missing") + xlab("Variable") + ggtitle("Percentage of missing in variables")
+
+#######################################################################################################################################################################################
+################################################################################ Data Cleaning ######################################################################################## 
+#######################################################################################################################################################################################
 
 #Remove completely missing rows from the dataset
 dataset <- dataset[!is.na(dataset$regionidcounty),]
@@ -17,10 +44,7 @@ dataset <- dataset[dataset$regionidcounty==3101,]
 #Remove rows that have empty taxvaluedollarcnt as these cannot be predicted
 dataset <- dataset[!is.na(dataset$taxvaluedollarcnt),]
 
-#Create table with comparison on missing values 
-precentageall <- data.frame(lapply(dataset, function(x) sum(is.na(x))/(sum(is.na(x))+sum(!is.na(x)))))
-
-#Imputate missing values and transformation of variables 
+#Imputate missing values that cannot be imputated otherwise
 dataset[is.na(dataset$fireplaceflag),"fireplaceflag"] <- 0
 dataset[is.na(dataset$fullbathcnt),"fullbathcnt"] <- 0
 dataset[is.na(dataset$garagecarcnt),"garagecarcnt"] <- 0
@@ -66,12 +90,34 @@ dataset[is.na(dataset$unitcnt),"unitcnt"] <- 0
 dataset$hashottuborspa <- ifelse(dataset$hashottuborspa == "true", 1, 0)
 dataset$taxdelinquencyflag <- ifelse(dataset$taxdelinquencyflag == "Y", 1, 0)
 dataset[is.na(dataset$taxdelinquencyyear),"taxdelinquencyyear"] <- 0
+
+#Imputating missing variables 
 dataset[is.na(dataset$yearbuilt), "yearbuilt"] <- mean(dataset$yearbuilt, na.rm = TRUE)
 dataset[is.na(dataset$taxamount), "taxamount"] <- 0.02001632 * dataset[is.na(dataset$taxamount), "taxvaluedollarcnt"]
- 
 dataset[is.na(dataset$structuretaxvaluedollarcnt),"structuretaxvaluedollarcnt"] <- dataset[is.na(dataset$structuretaxvaluedollarcnt),"taxvaluedollarcnt"] - dataset[is.na(dataset$structuretaxvaluedollarcnt),"landtaxvaluedollarcnt"]
 dataset[is.na(dataset$landtaxvaluedollarcnt),"landtaxvaluedollarcnt"] <- dataset[is.na(dataset$landtaxvaluedollarcnt),"taxvaluedollarcnt"] - dataset[is.na(dataset$landtaxvaluedollarcnt),"structuretaxvaluedollarcnt"]
 
+#Recoding variables from numbers to factors 
+dataset[dataset$airconditioningtypeid==0,"airconditioningtypeid"] <- "None"
+dataset[dataset$airconditioningtypeid==1,"airconditioningtypeid"] <- "Central"
+dataset[dataset$airconditioningtypeid==9,"airconditioningtypeid"] <- "Central"
+dataset[dataset$airconditioningtypeid==13,"airconditioningtypeid"] <- "Central"
+dataset[dataset$heatingorsystemtypeid==2,"heatingorsystemtypeid"] <- "Central"
+dataset[dataset$heatingorsystemtypeid==7,"heatingorsystemtypeid"] <- "Floor"
+dataset[dataset$heatingorsystemtypeid==0,"heatingorsystemtypeid"] <- "Other"
+dataset[dataset$heatingorsystemtypeid==20,"heatingorsystemtypeid"] <- "Other"
+dataset[dataset$propertylandusetypeid==31, "propertylandusetypeid"] <-"Commercial/Office/Residential Mixed Used"
+dataset[dataset$propertylandusetypeid==47, "propertylandusetypeid"] <-"Store/Office (Mixed Use)"
+dataset[dataset$propertylandusetypeid==246, "propertylandusetypeid"] <-"Duplex"
+dataset[dataset$propertylandusetypeid==247, "propertylandusetypeid"] <-"Triplex"
+dataset[dataset$propertylandusetypeid==248, "propertylandusetypeid"] <-"Quadruplex"
+dataset[dataset$propertylandusetypeid==260, "propertylandusetypeid"] <-"Residential General"
+dataset[dataset$propertylandusetypeid==261, "propertylandusetypeid"] <-"Single Family Residential"
+dataset[dataset$propertylandusetypeid==263, "propertylandusetypeid"] <-"Mobile Home"
+dataset[dataset$propertylandusetypeid==264, "propertylandusetypeid"] <-"Townhouse"
+dataset[dataset$propertylandusetypeid==266, "propertylandusetypeid"] <-"Condominium"
+dataset[dataset$propertylandusetypeid==267, "propertylandusetypeid"] <-"Cooperative"
+dataset[dataset$propertylandusetypeid==269, "propertylandusetypeid"] <-"Planned Unit Development"
 dataset$propertyzoningdesc = as.character(dataset$propertyzoningdesc)
 dataset$propertyzoningdesc = factor(dataset$propertyzoningdesc)
 dataset$regionidcounty <- factor(dataset$regionidcounty)
@@ -92,16 +138,15 @@ dataset$transactiondate <- base::as.Date(dataset$transactiondate)
 dataset$hashottuborspa <- factor(dataset$hashottuborspa)
 dataset$propertycountylandusecode <- factor(dataset$propertycountylandusecode)
 dataset$taxdelinquencyflag <- factor(dataset$taxdelinquencyflag)
-
+dataset$airconditioningtypeid <- as.character(dataset$airconditioningtypeid)
+dataset$heatingorsystemtypeid <- as.character(dataset$heatingorsystemtypeid)
+dataset$heatingorsystemtypeid <- factor(dataset$heatingorsystemtypeid)
+dataset$airconditioningtypeid <- factor(dataset$airconditioningtypeid)
+dataset$propertylandusetypeid <- factor(dataset$propertylandusetypeid)
 dataset <- dataset[!is.na(dataset$structuretaxvaluedollarcnt),]
 dataset <- dataset[!is.na(dataset$landtaxvaluedollarcnt),]
 
-#Compute missing values in the cleaned data set  
-precentageallclean <- data.frame(lapply(dataset, function(x) sum(is.na(x))/(sum(is.na(x))+sum(!is.na(x)))))
-classtest <- data.frame(sapply(dataset, function(x) class(x)))
-
 #Remove columns that are empty, and have no information
-
 dataset$architecturalstyletypeid <- NULL
 dataset$basementsqft<- NULL
 dataset$decktypeid<- NULL
@@ -126,56 +171,21 @@ dataset$regionidcounty <- NULL
 dataset$fireplaceflag <- NULL
 dataset$propertyzoningdesc <- NULL
 
-dataset$airconditioningtypeid <- as.character(dataset$airconditioningtypeid)
-dataset$heatingorsystemtypeid <- as.character(dataset$heatingorsystemtypeid)
-dataset[dataset$airconditioningtypeid==0,"airconditioningtypeid"] <- "None"
-dataset[dataset$airconditioningtypeid==1,"airconditioningtypeid"] <- "Central"
-dataset[dataset$airconditioningtypeid==9,"airconditioningtypeid"] <- "Central"
-dataset[dataset$airconditioningtypeid==13,"airconditioningtypeid"] <- "Central"
-dataset[dataset$heatingorsystemtypeid==2,"heatingorsystemtypeid"] <- "Central"
-dataset[dataset$heatingorsystemtypeid==7,"heatingorsystemtypeid"] <- "Floor"
-dataset[dataset$heatingorsystemtypeid==0,"heatingorsystemtypeid"] <- "Other"
-dataset[dataset$heatingorsystemtypeid==20,"heatingorsystemtypeid"] <- "Other"
-dataset$heatingorsystemtypeid <- factor(dataset$heatingorsystemtypeid)
-dataset$airconditioningtypeid <- factor(dataset$airconditioningtypeid)
-dataset[dataset$propertylandusetypeid==31, "propertylandusetypeid"] <-"Commercial/Office/Residential Mixed Used"
-dataset[dataset$propertylandusetypeid==47, "propertylandusetypeid"] <-"Store/Office (Mixed Use)"
-dataset[dataset$propertylandusetypeid==246, "propertylandusetypeid"] <-"Duplex"
-dataset[dataset$propertylandusetypeid==247, "propertylandusetypeid"] <-"Triplex"
-dataset[dataset$propertylandusetypeid==248, "propertylandusetypeid"] <-"Quadruplex"
-dataset[dataset$propertylandusetypeid==260, "propertylandusetypeid"] <-"Residential General"
-dataset[dataset$propertylandusetypeid==261, "propertylandusetypeid"] <-"Single Family Residential"
-dataset[dataset$propertylandusetypeid==263, "propertylandusetypeid"] <-"Mobile Home"
-dataset[dataset$propertylandusetypeid==264, "propertylandusetypeid"] <-"Townhouse"
-dataset[dataset$propertylandusetypeid==266, "propertylandusetypeid"] <-"Condominium"
-dataset[dataset$propertylandusetypeid==267, "propertylandusetypeid"] <-"Cooperative"
-dataset[dataset$propertylandusetypeid==269, "propertylandusetypeid"] <-"Planned Unit Development"
-dataset$propertylandusetypeid <- factor(dataset$propertylandusetypeid)
-
 #Create housing dataset on rule roomtcount >0
 housingdataset <- dataset[dataset$structuretaxvaluedollarcnt!=0,]
 percentagehous <- data.frame(lapply(housingdataset, function(x) sum(is.na(x))/(sum(is.na(x))+sum(!is.na(x)))))
 
-#Create land dataset on rule ....
-#landdataset <- dataset[!is.na(dataset$regionidzip) & !is.na(dataset$yearbuilt),]
-#percentageland <- data.frame(lapply(dataset$landdataset, function(x) sum(is.na(x))/(sum(is.na(x))+sum(!is.na(x)))))  
-  
 rm(precentageall)
 rm(precentageallclean)
 rm(percentagehous)
-#rm(percentageland)
 rm(classtest)
 rm(dataset)
 rm(soldhouses)
+rm(MissingValues)
 
-#write.csv(x = totalmissing, "percentage.csv")
-#write.csv(housingdataset, "housingdata.csv")
-#write.csv(landdataset, "landdataset.csv")
-
-###########################################################################################################
-############################################## END OF CLEANING ############################################
-###########################################################################################################
-############################################### Start of EDA ##############################################
+#######################################################################################################################################################################################
+##################################################################################### EDA ############################################################################################# 
+#######################################################################################################################################################################################
 
 #Create tableplot with all the variables for landtaxvaluedollarcnt
 colMtx <- matrix(names(housingdataset)[1:length(housingdataset)-1], nrow = 3)
@@ -201,9 +211,9 @@ corHousingLandTax <- cor(housingdataset %>% select(one_of(numeric_features, "lan
 corHousingLandTax[is.na(corHousingLandTax)] = 0
 corrplot(corHousingLandTax, method = "color", order="hclust")
 
-housingdataset2 <- head(housingdataset, 10000)
 #Create corplots with all the categorical variables for landtaxvaluedollarcnt
 #Minimized to save computation time. 
+housingdataset2 <- head(housingdataset, 10000)
 ordinal_features <- c('airconditioningtypeid', 'heatingorsystemtypeid','pooltypeid10', 'pooltypeid7', 'propertylandusetypeid','regionidzip')
 corHousingLandTax2 <- cor(data.matrix(housingdataset2 %>% select(one_of(ordinal_features, "landtaxvaluedollarcnt"))), method = "kendall", use = "pairwise.complete.obs")
 corrplot(corHousingLandTax2, method = "color", order="hclust")
@@ -212,6 +222,9 @@ ordinal_features <- c('airconditioningtypeid', 'buildingqualitytypeid','building
 corHousinghouseTax2 <- cor(data.matrix(housingdataset %>% select(one_of(ordinal_features, "structuretaxvaluedollarcnt"))), method = "kendall", use = "pairwise.complete.obs")
 corrplot(corHousingLandTax2, method = "color", order="hclust")
 
+#######################################################################################################################################################################################
+############################################################################# Hypotheses Testing ###################################################################################### 
+#######################################################################################################################################################################################
 
 ### EDA for model as proof for hypothesized relationship. 
 ggplot(housingdataset, aes(airconditioningtypeid, log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Airconditioning Type")
@@ -241,17 +254,14 @@ cor.test(log(housingdataset$structuretaxvaluedollarcnt), housingdataset$numberof
 #Significant relationship 0.009
 ggplot(housingdataset, aes(factor(propertylandusetypeid), log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Housing Type")
 
-####################### MODEL BUILDING ########################
+#######################################################################################################################################################################################
+############################################################################### Linear Regression ##################################################################################### 
+#######################################################################################################################################################################################
 
-######Model estimation for house taxes########
-library(caret)
-library(car)
-library(lmtest)
 set.seed(0)
 folds = createFolds(housingdataset$parcelid, 5)
 test = housingdataset[folds[[1]], ]
 train = housingdataset[-folds[[1]], ]
-
 
 #Model1 House tax 
 model <- lm(structuretaxvaluedollarcnt~airconditioningtypeid + bathroomcnt + bedroomcnt + 
@@ -269,7 +279,6 @@ MSEModel1 <- mean((predictedmodel1 - test$structuretaxvaluedollarcnt)^2, na.rm =
 RSSModel1 <- sum((predictedmodel1 - test$structuretaxvaluedollarcnt)^2, na.rm = TRUE)
 AdjR2Model1 <- 1-((RSSModel1/(length(test$structuretaxvaluedollarcnt)-length(summary(model)$coefficients)-1))/(TSS/(length(test$structuretaxvaluedollarcnt)-1)))
 AdjR2Model1
-
 
 #Model2 House Tax
 bc <- boxCox(model)
@@ -306,7 +315,7 @@ train$censustractandblock <- NULL
 #model3 = step(model2, scope, direction = "both", k = 2)
 
 
-#best model
+#best model based on earlier estimation
 model3 <- lm(structuretaxvaluedollarcnt.bc~airconditioningtypeid + bathroomcnt + calculatedfinishedsquarefeet + heatingorsystemtypeid +
                poolcnt + yearbuilt  + finishedsquarefeet15 + taxdelinquencyflag + buildingqualitytypeid+ 
                lotsizesquarefeet + rawcensustractandblock + longitude + latitude + taxdelinquencyyear, data = train)
@@ -322,9 +331,7 @@ AdjR2Model3 <- 1-((RSSModel3/(length(test$structuretaxvaluedollarcnt)-length(sum
 AdjR2Model3
 
 #Correction for heteroskedasticity:
-#White standard errors:
 library(RCurl)
-
 # import the function from repository
 url_robust <- "https://raw.githubusercontent.com/IsidoreBeautrelet/economictheoryblog/master/robust_summary.R"
 eval(parse(text = getURL(url_robust, ssl.verifypeer = FALSE)),
@@ -333,8 +340,6 @@ eval(parse(text = getURL(url_robust, ssl.verifypeer = FALSE)),
 modelresultsHouseTaxes <- summary(model3, robust=T)
 modelresultsHouseTaxes
 ##### END MODEL BUILDING HOUSE TAXES ####
-
-
 
 ##### START MODEL BUILDING LAND TAXES #####
 ggplot(housingdataset, aes(propertylandusetypeid, log(landtaxvaluedollarcnt)))+geom_boxplot()+ggtitle("propertylandusetypeid")
@@ -361,7 +366,6 @@ RSSModel4 <- sum((predictedmodel4 - test$landtaxvaluedollarcnt)^2, na.rm = TRUE)
 AdjR2Model4 <- 1-((RSSModel4/(length(test$landtaxvaluedollarcnt)-length(summary(model4)$coefficients)-1))/(TSS/(length(test$landtaxvaluedollarcnt)-1)))
 AdjR2Model4
 
-
 #Model5 Land Tax
 bc2 <- boxCox(model4)
 lambda2 = bc$x[which(bc2$y == max(bc2$y))]
@@ -382,13 +386,11 @@ AdjR2Model5
 #Final Model Land Tax 
 modelresultsLandTaxes <- summary(model5, robust=T)
 modelresultsLandTaxes
-#R2 of 0.4254
 
+#######################################################################################################################################################################################
+############################################################################### LASSO Regression ###################################################################################### 
+#######################################################################################################################################################################################
 
-
-######### LASSO Regression ###### 
-library(glmnet)
-library(caret)
 set.seed(0)
 folds = createFolds(housingdataset$parcelid, 5)
 test = housingdataset[folds[[1]], ]
@@ -400,7 +402,7 @@ train$taxvaluedollarcnt <- NULL
 train$logerror <- NULL
 train$censustractandblock <- NULL
 
-#House Tax 
+#House Tax Estimation
 train <-train[complete.cases(train),]
 test <-test[complete.cases(test),]
 TSS <- sum((train$structuretaxvaluedollarcnt - mean(train$structuretaxvaluedollarcnt, na.rm =  TRUE))^2)
@@ -423,7 +425,7 @@ RSSModel6 <- sum((lassopredictmodel1 - train$structuretaxvaluedollarcnt)^2, na.r
 AdjR2Model6 <- 1-(RSSModel6/TSS)
 AdjR2Model6
 
-#Land tax 
+#Land tax Estimation
 folds = createFolds(housingdataset$parcelid, 5)
 test = housingdataset[folds[[1]], ]
 train = housingdataset[-folds[[1]], ]
@@ -456,19 +458,187 @@ RSSModel7 <- sum((lassopredictmodel2 - train$landtaxvaluedollarcnt)^2, na.rm = T
 AdjR2Model7 <- 1-(RSSModel7/TSS)
 AdjR2Model7
 
+#######################################################################################################################################################################################
+################################################################################ Random Forest ######################################################################################## 
+#######################################################################################################################################################################################
 
-#### END MODELLING ####
+folds = createFolds(housingdataset$parcelid, 5)
+test = housingdataset[folds[[1]], ]
+train = housingdataset[-folds[[1]], ]
+
+#Land tax 
+
+#Prepared data by removing factors with a higher number of levels
+train$regionidzip <- NULL
+train$landtaxvaluedollarcnt <- NULL
+train$taxamount <- NULL
+train$taxvaluedollarcnt <- NULL
+train$logerror <- NULL
+train$censustractandblock <- NULL
+train$propertycountylandusecode <- NULL
+train$transactiondate <- NULL
+train <-train[complete.cases(train),]
+
+#Reduce sample size to reduce computation time.
+trainForest <- train[1:10000,]
+TSS <- sum((trainForest$structuretaxvaluedollarcnt - mean(trainForest$structuretaxvaluedollarcnt, na.rm =  TRUE))^2)
+
+#Setting the number of variables
+#Cross validation of the number of variables tried at each split
+R2ModelTree <- numeric(29)
+for (i in 1:29) {
+  fit = randomForest(structuretaxvaluedollarcnt ~ ., data = trainForest, mtry = i)
+  RSSRandom <- sum((fit$predicted - trainForest$structuretaxvaluedollarcnt)^2, na.rm = TRUE)
+  R2Random <- 1 - RSSRandom/TSS
+  R2ModelTree[i] <- R2Random
+}
+R2ModelTree
+plot(R2ModelTree, type = 'line')
+
+#Result: 13
+
+#Estimation of the random forest for 13 variables, tested and reduced the number of trees to 100. 
+fit2 = randomForest(structuretaxvaluedollarcnt ~ ., data = trainForest, ntree=100, mtry = 13)
+plot(fit2)
+Importance <- data.frame(fit2$importance)
+Importance$variables <- rownames(Importance)
+arrange(Importance, desc(IncNodePurity))
+fit2
+AdjR2Model8 <- 0.6168
+
+#### IMPORTANCE #### 
+# IncNodePurity                    variables
+# 1   1.499308e+14         finishedsquarefeet12
+# 2   8.760989e+13 calculatedfinishedsquarefeet
+# 3   2.747342e+13        buildingqualitytypeid
+# 4   2.148542e+13                  fullbathcnt
+# 5   2.130805e+13                  bathroomcnt
+# 6   2.003047e+13                    yearbuilt
+# 7   1.730410e+13            calculatedbathnbr
+# 8   1.605000e+13            lotsizesquarefeet
+# 9   1.598112e+13                     latitude
+# 10  1.450941e+13                    longitude
+# 11  1.267056e+13       rawcensustractandblock
+# 12  1.179566e+13                     parcelid
+# 13  8.604678e+12                   bedroomcnt
+# 14  4.114194e+12        propertylandusetypeid
+# 15  2.751088e+12                      unitcnt
+# 16  2.495306e+12        heatingorsystemtypeid
+# 17  2.192346e+12         finishedsquarefeet15
+# 18  2.021844e+12        airconditioningtypeid
+# 19  1.744449e+12                  pooltypeid7
+# 20  1.585746e+12                      poolcnt
+# 21  1.424437e+12           taxdelinquencyflag
+# 22  1.410070e+12           taxdelinquencyyear
+# 23  2.288996e+11                 pooltypeid10
+# 24  2.173026e+11               hashottuborspa
+# 25  2.319345e+09              numberofstories
+# 26  5.682363e+08          buildingclasstypeid
+# 27  0.000000e+00              garagetotalsqft
+# 28  0.000000e+00               assessmentyear
+
+#Result 
+
+# Call:
+#   randomForest(formula = structuretaxvaluedollarcnt ~ ., data = trainForest,      ntree = 100, mtry = 13) 
+# Type of random forest: regression
+# Number of trees: 100
+# No. of variables tried at each split: 13
+# 
+# Mean of squared residuals: 17689234092
+# % Var explained: 61.68
+
+####Land tax####
+folds = createFolds(housingdataset$parcelid, 5)
+test = housingdataset[folds[[1]], ]
+train = housingdataset[-folds[[1]], ]
+
+train$regionidzip <- NULL
+train$structuretaxvaluedollarcnt <- NULL
+train$taxamount <- NULL
+train$taxvaluedollarcnt <- NULL
+train$logerror <- NULL
+train$censustractandblock <- NULL
+train$propertycountylandusecode <- NULL
+train$transactiondate <- NULL
+train <-train[complete.cases(train),]
 
 
+#Reduce sample size to reduce computation time.
+trainForestland <- train[1:10000,]
+TSS <- sum((trainForestland$landtaxvaluedollarcnt - mean(trainForestland$landtaxvaluedollarcnt, na.rm =  TRUE))^2)
+
+#Setting the number of variables
+#Cross validation of the number of variables tried at each split
+R2ModelTree <- numeric(29)
+for (i in 1:29) {
+  fit = randomForest(landtaxvaluedollarcnt ~ ., data = trainForestland, mtry = i)
+  RSSRandom <- sum((fit$predicted - trainForestland$landtaxvaluedollarcnt)^2, na.rm = TRUE)
+  R2Random <- 1 - RSSRandom/TSS
+  R2ModelTree[i] <- R2Random
+}
+R2ModelTree
+plot(R2ModelTree, type = 'line')
+
+#Result: 4
+
+#Estimation of the random forest for 4 variables, tested and reduced the number of trees to 100. 
+fit2 = randomForest(landtaxvaluedollarcnt ~ ., data = trainForestland, ntree=100, mtry = 4)
+plot(fit2)
+Importance <- data.frame(fit2$importance)
+Importance$variables <- rownames(Importance)
+arrange(Importance, desc(IncNodePurity))
+fit2
+AdjR2Model9 <- 0.4214
+
+# IncNodePurity                    variables
+# 1   1.561358e+14         finishedsquarefeet12
+# 2   1.524757e+14 calculatedfinishedsquarefeet
+# 3   1.491856e+14                    longitude
+# 4   1.288952e+14       rawcensustractandblock
+# 5   1.087304e+14                     latitude
+# 6   1.056160e+14                     parcelid
+# 7   9.261170e+13        buildingqualitytypeid
+# 8   8.057039e+13                  bathroomcnt
+# 9   7.528872e+13            calculatedbathnbr
+# 10  7.286828e+13                    yearbuilt
+# 11  6.311014e+13                   bedroomcnt
+# 12  6.081082e+13            lotsizesquarefeet
+# 13  5.914029e+13        propertylandusetypeid
+# 14  5.382498e+13        heatingorsystemtypeid
+# 15  5.060546e+13                  fullbathcnt
+# 16  1.423432e+13         finishedsquarefeet15
+# 17  1.187715e+13                  pooltypeid7
+# 18  1.161121e+13                      poolcnt
+# 19  1.040844e+13                      unitcnt
+# 20  1.016435e+13        airconditioningtypeid
+# 21  2.063483e+12           taxdelinquencyyear
+# 22  1.466136e+12           taxdelinquencyflag
+# 23  8.505614e+11                 pooltypeid10
+# 24  8.389483e+11               hashottuborspa
+# 25  4.787332e+10              numberofstories
+# 26  1.120088e+10          buildingclasstypeid
+# 27  0.000000e+00              garagetotalsqft
+# 28  0.000000e+00               assessmentyear
+
+# Call:
+#   randomForest(formula = landtaxvaluedollarcnt ~ ., data = trainForestland,      ntree = 100, mtry = 4) 
+# Type of random forest: regression
+# Number of trees: 100
+# No. of variables tried at each split: 4
+# 
+# Mean of squared residuals: 92750699114
+# % Var explained: 42.14
+
+#######################################################################################################################################################################################
+############################################################################### End of modelling ###################################################################################### 
+#######################################################################################################################################################################################
 
 #### Results 
 
-Results <- data.frame(Model = c("House tax linear", "House tax box cox", "House tax box cox stepwise","House tax Lasso Regression",
-                                "Land tax linear", "Land tax box cox", "Land tax Lasso Regression"),
-                      AdjR2Train = round(c(summary(model)$adj.r.squared, summary(model2)$adj.r.squared, summary(model3)$adj.r.squared, AdjR2Model6, 
-                                     summary(model4)$adj.r.squared, summary(model5)$adj.r.squared, AdjR2Model7),3),
-                      AdjR2Test = round(c(AdjR2Model1, AdjR2Model2, AdjR2Model3, 0 , AdjR2Model4, AdjR2Model5, 0),3))
-Results[4,3] <- ""
-Results[7,3] <- ""
+Results <- data.frame(Model = c("Multiple Linear Regression", "MLR Box Coxs", "MLR Stepwise", "Lasso Regression", "Random Forests"),
+                      House_Tax =  round(c(summary(model)$adj.r.squared, summary(model2)$adj.r.squared,summary(model3)$adj.r.squared, AdjR2Model6, AdjR2Model8),3),
+                      Land_Tax = round(c(summary(model4)$adj.r.squared, summary(model5)$adj.r.squared,0, AdjR2Model7, AdjR2Model9),3))
+Results[3,3] <- ""
 Results
 
