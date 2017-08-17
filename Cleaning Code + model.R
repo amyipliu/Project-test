@@ -379,6 +379,8 @@ RSSModel5 <- sum((predictedmodel5 - test$landtaxvaluedollarcnt)^2, na.rm = TRUE)
 AdjR2Model5 <- 1-((RSSModel5/(length(test$landtaxvaluedollarcnt)-length(summary(model5)$coefficients)-1))/(TSS/(length(test$landtaxvaluedollarcnt)-1)))
 AdjR2Model5
 
+
+
 #Final Model Land Tax 
 modelresultsLandTaxes <- summary(model5, robust=T)
 modelresultsLandTaxes
@@ -466,6 +468,8 @@ folds = createFolds(housingdataset$parcelid, 5)
 test = housingdataset[folds[[1]], ]
 train = housingdataset[-folds[[1]], ]
 
+#Land tax 
+
 #Prepared data by removing factors with a higher number of levels
 train$regionidzip <- NULL
 train$landtaxvaluedollarcnt <- NULL
@@ -476,7 +480,6 @@ train$censustractandblock <- NULL
 train$propertycountylandusecode <- NULL
 train$transactiondate <- NULL
 train <-train[complete.cases(train),]
-test <-test[complete.cases(test),]
 
 #Reduce sample size to reduce computation time.
 trainForest <- train[1:10000,]
@@ -548,20 +551,102 @@ AdjR2Model8 <- 0.6168
 # % Var explained: 61.68
 
 
+
+####Land tax####
+folds = createFolds(housingdataset$parcelid, 5)
+test = housingdataset[folds[[1]], ]
+train = housingdataset[-folds[[1]], ]
+
+train$regionidzip <- NULL
+train$structuretaxvaluedollarcnt <- NULL
+train$taxamount <- NULL
+train$taxvaluedollarcnt <- NULL
+train$logerror <- NULL
+train$censustractandblock <- NULL
+train$propertycountylandusecode <- NULL
+train$transactiondate <- NULL
+train <-train[complete.cases(train),]
+
+
+#Reduce sample size to reduce computation time.
+trainForestland <- train[1:10000,]
+TSS <- sum((trainForestland$landtaxvaluedollarcnt - mean(trainForestland$landtaxvaluedollarcnt, na.rm =  TRUE))^2)
+
+#Setting the number of variables
+#Cross validation of the number of variables tried at each split
+R2ModelTree <- numeric(29)
+for (i in 1:29) {
+  fit = randomForest(landtaxvaluedollarcnt ~ ., data = trainForestland, mtry = i)
+  RSSRandom <- sum((fit$predicted - trainForestland$landtaxvaluedollarcnt)^2, na.rm = TRUE)
+  R2Random <- 1 - RSSRandom/TSS
+  R2ModelTree[i] <- R2Random
+}
+R2ModelTree
+plot(R2ModelTree, type = 'line')
+
+#Result: 4
+
+#Estimation of the random forest for 4 variables, tested and reduced the number of trees to 100. 
+fit2 = randomForest(landtaxvaluedollarcnt ~ ., data = trainForestland, ntree=100, mtry = 4)
+plot(fit2)
+Importance <- data.frame(fit2$importance)
+Importance$variables <- rownames(Importance)
+arrange(Importance, desc(IncNodePurity))
+fit2
+AdjR2Model9 <- 0.4214
+
+# IncNodePurity                    variables
+# 1   1.561358e+14         finishedsquarefeet12
+# 2   1.524757e+14 calculatedfinishedsquarefeet
+# 3   1.491856e+14                    longitude
+# 4   1.288952e+14       rawcensustractandblock
+# 5   1.087304e+14                     latitude
+# 6   1.056160e+14                     parcelid
+# 7   9.261170e+13        buildingqualitytypeid
+# 8   8.057039e+13                  bathroomcnt
+# 9   7.528872e+13            calculatedbathnbr
+# 10  7.286828e+13                    yearbuilt
+# 11  6.311014e+13                   bedroomcnt
+# 12  6.081082e+13            lotsizesquarefeet
+# 13  5.914029e+13        propertylandusetypeid
+# 14  5.382498e+13        heatingorsystemtypeid
+# 15  5.060546e+13                  fullbathcnt
+# 16  1.423432e+13         finishedsquarefeet15
+# 17  1.187715e+13                  pooltypeid7
+# 18  1.161121e+13                      poolcnt
+# 19  1.040844e+13                      unitcnt
+# 20  1.016435e+13        airconditioningtypeid
+# 21  2.063483e+12           taxdelinquencyyear
+# 22  1.466136e+12           taxdelinquencyflag
+# 23  8.505614e+11                 pooltypeid10
+# 24  8.389483e+11               hashottuborspa
+# 25  4.787332e+10              numberofstories
+# 26  1.120088e+10          buildingclasstypeid
+# 27  0.000000e+00              garagetotalsqft
+# 28  0.000000e+00               assessmentyear
+
+
+# Call:
+#   randomForest(formula = landtaxvaluedollarcnt ~ ., data = trainForestland,      ntree = 100, mtry = 4) 
+# Type of random forest: regression
+# Number of trees: 100
+# No. of variables tried at each split: 4
+# 
+# Mean of squared residuals: 92750699114
+# % Var explained: 42.14
+
+
+
+
 #######################################################################################################################################################################################
 ############################################################################### End of modelling ###################################################################################### 
 #######################################################################################################################################################################################
 
-
 #### Results 
 
-Results <- data.frame(Model = c("House tax linear", "House tax box cox", "House tax box cox stepwise","House tax Lasso Regression",
-                                "Land tax linear", "Land tax box cox", "Land tax Lasso Regression"),
-                      AdjR2Train = round(c(summary(model)$adj.r.squared, summary(model2)$adj.r.squared, summary(model3)$adj.r.squared, AdjR2Model6, 
-                                           summary(model4)$adj.r.squared, summary(model5)$adj.r.squared, AdjR2Model7),3))
+Results <- data.frame(Model = c("Multiple Linear Regression", "MLR Box Coxs", "MLR Stepwise", "Lasso Regression", "Random Forests"),
+                      House_Tax =  round(c(summary(model)$adj.r.squared, summary(model2)$adj.r.squared,summary(model3)$adj.r.squared, AdjR2Model6, AdjR2Model8),3),
+                      Land_Tax = round(c(summary(model4)$adj.r.squared, summary(model5)$adj.r.squared,0, AdjR2Model7, AdjR2Model9),3))
+Results[3,3] <- ""
 Results
-
-
-
-
 
