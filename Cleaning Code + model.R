@@ -1,9 +1,21 @@
+#######################################################################################################################################################################################
+#######################################################################################################################################################################################
+######################################################### Machine Learning Assignment for NYC Data Science Academy ####################################################################
+#######################################################################################################################################################################################
+#######################################################################################################################################################################################
+#Loading packages
 library(data.table)
 library(ggplot2)
 library(plyr)
 library(dplyr)
 library(tabplot)
 library(corrplot)
+library(caret)
+library(car)
+library(lmtest)
+library(tree)
+library(randomForest)
+library(glmnet)
 
 #######################################################################################################################################################################################
 ############################################################################### Opening Data sets #################################################################################### 
@@ -13,6 +25,13 @@ library(corrplot)
 dataset <- fread("C:/Users/Steven Jongerden/Desktop/Machine Learning/Data/properties_2016.csv")
 soldhouses <- fread("C:/Users/Steven Jongerden/Desktop/Machine Learning/Data/train_2016_v2.csv", header = TRUE)
 dataset <- as.data.frame(left_join(soldhouses, dataset, by ="parcelid"))
+
+#Missing Information In Data Set
+MissingValues <- data.frame(missing = sapply(dataset, function(x) round(sum(is.na(x))/nrow(dataset),4)))
+MissingValues$variable <- rownames(MissingValues)
+MissingValues <- arrange(MissingValues, desc(missing)) %>% select(variable, missing)
+ggplot(MissingValues, aes(x=reorder(variable, missing), y = missing))+geom_bar(stat = "identity") + coord_flip() +
+  ylab("Percentage Missing") + xlab("Variable") + ggtitle("Percentage of missing in variables")
 
 #######################################################################################################################################################################################
 ################################################################################ Data Cleaning ######################################################################################## 
@@ -24,9 +43,6 @@ dataset <- dataset[dataset$regionidcounty==3101,]
 
 #Remove rows that have empty taxvaluedollarcnt as these cannot be predicted
 dataset <- dataset[!is.na(dataset$taxvaluedollarcnt),]
-
-#Create table with comparison on missing values 
-precentageall <- data.frame(lapply(dataset, function(x) sum(is.na(x))/(sum(is.na(x))+sum(!is.na(x)))))
 
 #Imputate missing values that cannot be imputated otherwise
 dataset[is.na(dataset$fireplaceflag),"fireplaceflag"] <- 0
@@ -130,10 +146,6 @@ dataset$propertylandusetypeid <- factor(dataset$propertylandusetypeid)
 dataset <- dataset[!is.na(dataset$structuretaxvaluedollarcnt),]
 dataset <- dataset[!is.na(dataset$landtaxvaluedollarcnt),]
 
-#Compute missing values in the cleaned data set  
-precentageallclean <- data.frame(lapply(dataset, function(x) sum(is.na(x))/(sum(is.na(x))+sum(!is.na(x)))))
-classtest <- data.frame(sapply(dataset, function(x) class(x)))
-
 #Remove columns that are empty, and have no information
 dataset$architecturalstyletypeid <- NULL
 dataset$basementsqft<- NULL
@@ -169,6 +181,7 @@ rm(percentagehous)
 rm(classtest)
 rm(dataset)
 rm(soldhouses)
+rm(MissingValues)
 
 #######################################################################################################################################################################################
 ##################################################################################### EDA ############################################################################################# 
@@ -241,19 +254,14 @@ cor.test(log(housingdataset$structuretaxvaluedollarcnt), housingdataset$numberof
 #Significant relationship 0.009
 ggplot(housingdataset, aes(factor(propertylandusetypeid), log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Housing Type")
 
-
 #######################################################################################################################################################################################
 ############################################################################### Linear Regression ##################################################################################### 
 #######################################################################################################################################################################################
 
-library(caret)
-library(car)
-library(lmtest)
 set.seed(0)
 folds = createFolds(housingdataset$parcelid, 5)
 test = housingdataset[folds[[1]], ]
 train = housingdataset[-folds[[1]], ]
-
 
 #Model1 House tax 
 model <- lm(structuretaxvaluedollarcnt~airconditioningtypeid + bathroomcnt + bedroomcnt + 
@@ -271,7 +279,6 @@ MSEModel1 <- mean((predictedmodel1 - test$structuretaxvaluedollarcnt)^2, na.rm =
 RSSModel1 <- sum((predictedmodel1 - test$structuretaxvaluedollarcnt)^2, na.rm = TRUE)
 AdjR2Model1 <- 1-((RSSModel1/(length(test$structuretaxvaluedollarcnt)-length(summary(model)$coefficients)-1))/(TSS/(length(test$structuretaxvaluedollarcnt)-1)))
 AdjR2Model1
-
 
 #Model2 House Tax
 bc <- boxCox(model)
@@ -293,7 +300,6 @@ RSSModel2 <- sum((predictedmodel2 - test$structuretaxvaluedollarcnt)^2, na.rm = 
 AdjR2Model2 <- 1-((RSSModel2/(length(test$structuretaxvaluedollarcnt)-length(summary(model2)$coefficients)-1))/(TSS/(length(test$structuretaxvaluedollarcnt)-1)))
 AdjR2Model2
 
-
 #Model 3
 train$landtaxvaluedollarcnt <- NULL
 train$taxamount <- NULL
@@ -301,7 +307,6 @@ train$structuretaxvaluedollarcnt <- NULL
 train$taxvaluedollarcnt <- NULL
 train$logerror <- NULL
 train$censustractandblock <- NULL
-
 
 #library(MASS)
 #model.empty = lm(structuretaxvaluedollarcnt.bc ~ 1, data = train)
@@ -335,7 +340,6 @@ eval(parse(text = getURL(url_robust, ssl.verifypeer = FALSE)),
 modelresultsHouseTaxes <- summary(model3, robust=T)
 modelresultsHouseTaxes
 ##### END MODEL BUILDING HOUSE TAXES ####
-
 
 ##### START MODEL BUILDING LAND TAXES #####
 ggplot(housingdataset, aes(propertylandusetypeid, log(landtaxvaluedollarcnt)))+geom_boxplot()+ggtitle("propertylandusetypeid")
@@ -379,18 +383,14 @@ RSSModel5 <- sum((predictedmodel5 - test$landtaxvaluedollarcnt)^2, na.rm = TRUE)
 AdjR2Model5 <- 1-((RSSModel5/(length(test$landtaxvaluedollarcnt)-length(summary(model5)$coefficients)-1))/(TSS/(length(test$landtaxvaluedollarcnt)-1)))
 AdjR2Model5
 
-
-
 #Final Model Land Tax 
 modelresultsLandTaxes <- summary(model5, robust=T)
 modelresultsLandTaxes
 
-
 #######################################################################################################################################################################################
 ############################################################################### LASSO Regression ###################################################################################### 
 #######################################################################################################################################################################################
-library(glmnet)
-library(caret)
+
 set.seed(0)
 folds = createFolds(housingdataset$parcelid, 5)
 test = housingdataset[folds[[1]], ]
@@ -461,9 +461,7 @@ AdjR2Model7
 #######################################################################################################################################################################################
 ################################################################################ Random Forest ######################################################################################## 
 #######################################################################################################################################################################################
-library(tree)
-library(caret)
-library(randomForest)
+
 folds = createFolds(housingdataset$parcelid, 5)
 test = housingdataset[folds[[1]], ]
 train = housingdataset[-folds[[1]], ]
@@ -550,8 +548,6 @@ AdjR2Model8 <- 0.6168
 # Mean of squared residuals: 17689234092
 # % Var explained: 61.68
 
-
-
 ####Land tax####
 folds = createFolds(housingdataset$parcelid, 5)
 test = housingdataset[folds[[1]], ]
@@ -625,7 +621,6 @@ AdjR2Model9 <- 0.4214
 # 27  0.000000e+00              garagetotalsqft
 # 28  0.000000e+00               assessmentyear
 
-
 # Call:
 #   randomForest(formula = landtaxvaluedollarcnt ~ ., data = trainForestland,      ntree = 100, mtry = 4) 
 # Type of random forest: regression
@@ -634,9 +629,6 @@ AdjR2Model9 <- 0.4214
 # 
 # Mean of squared residuals: 92750699114
 # % Var explained: 42.14
-
-
-
 
 #######################################################################################################################################################################################
 ############################################################################### End of modelling ###################################################################################### 
