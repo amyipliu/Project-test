@@ -175,17 +175,42 @@ dataset$propertyzoningdesc <- NULL
 housingdataset <- dataset[dataset$structuretaxvaluedollarcnt!=0,]
 percentagehous <- data.frame(lapply(housingdataset, function(x) sum(is.na(x))/(sum(is.na(x))+sum(!is.na(x)))))
 
-rm(precentageall)
-rm(precentageallclean)
 rm(percentagehous)
-rm(classtest)
 rm(dataset)
 rm(soldhouses)
 rm(MissingValues)
 
 #######################################################################################################################################################################################
+##################################################################################### Clustering####################################################################################### 
+#######################################################################################################################################################################################
+
+num <- sapply(housingdataset, function(x) is.numeric(x))
+housingdataset.scale = as.data.frame(scale(housingdataset[,num]))
+housingdataset.scale$garagetotalsqft <- NULL
+housingdataset.scale$assessmentyear <- NULL
+housingdataset.scale$censustractandblock <- NULL
+
+km.test = kmeans(housingdataset.scale, centers = 8)
+housingdataset$Clustering <- km.test$cluster
+housingdataset$Clustering <- factor(housingdataset$Clustering)
+
+#######################################################################################################################################################################################
 ##################################################################################### EDA ############################################################################################# 
 #######################################################################################################################################################################################
+
+#Investigate Level of variance 
+nums <- sapply(housingdataset, is.numeric)
+Variance <- data.frame(variance = sapply(housingdataset[,nums], function(x) round(sd(x),4)))
+Variance$variable <- rownames(Variance)
+Variance <- arrange(Variance, desc(variance)) %>% select(variable, variance)
+Variance1 <- Variance[1:12,]
+Variance2 <- Variance[13:26,]
+
+ggplot(Variance1, aes(x=reorder(variable, variance), y = variance))+geom_bar(stat = "identity") + coord_flip() +
+  ylab("Variance") + xlab("Variable") + ggtitle("Level of Variance")
+
+ggplot(Variance2, aes(x=reorder(variable, variance), y = variance))+geom_bar(stat = "identity") + coord_flip() +
+  ylab("Variance") + xlab("Variable") + ggtitle("Level of Variance")
 
 #Create tableplot with all the variables for landtaxvaluedollarcnt
 colMtx <- matrix(names(housingdataset)[1:length(housingdataset)-1], nrow = 3)
@@ -254,6 +279,10 @@ cor.test(log(housingdataset$structuretaxvaluedollarcnt), housingdataset$numberof
 #Significant relationship 0.009
 ggplot(housingdataset, aes(factor(propertylandusetypeid), log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Housing Type")
 
+
+#New Group
+ggplot(housingdataset, aes(Clustering, log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Housing Type")
+
 #######################################################################################################################################################################################
 ############################################################################### Linear Regression ##################################################################################### 
 #######################################################################################################################################################################################
@@ -266,7 +295,7 @@ train = housingdataset[-folds[[1]], ]
 #Model1 House tax 
 model <- lm(structuretaxvaluedollarcnt~airconditioningtypeid + bathroomcnt + bedroomcnt + 
               calculatedfinishedsquarefeet + heatingorsystemtypeid + poolcnt + yearbuilt + 
-              + propertylandusetypeid + unitcnt, data = train)
+              + propertylandusetypeid + unitcnt + Clustering, data = train)
 
 TSS <- sum((test$structuretaxvaluedollarcnt - mean(test$structuretaxvaluedollarcnt, na.rm =  TRUE))^2)
 summary(model)
@@ -286,7 +315,7 @@ lambda = bc$x[which(bc$y == max(bc$y))]
 structuretaxvaluedollarcnt.bc = (train$structuretaxvaluedollarcnt^lambda - 1)/lambda
 model2 <- lm(structuretaxvaluedollarcnt.bc~airconditioningtypeid + bathroomcnt + bedroomcnt + 
               calculatedfinishedsquarefeet + heatingorsystemtypeid + poolcnt + yearbuilt  + 
-              propertylandusetypeid + unitcnt , data = train)
+              propertylandusetypeid + unitcnt + Clustering , data = train)
 
 TSS <- sum((test$structuretaxvaluedollarcnt - mean(test$structuretaxvaluedollarcnt, na.rm =  TRUE))^2)
 summary(model2)
@@ -317,8 +346,8 @@ train$censustractandblock <- NULL
 
 #best model based on earlier estimation
 model3 <- lm(structuretaxvaluedollarcnt.bc~airconditioningtypeid + bathroomcnt + calculatedfinishedsquarefeet + heatingorsystemtypeid +
-               poolcnt + yearbuilt  + finishedsquarefeet15 + taxdelinquencyflag + buildingqualitytypeid+ 
-               lotsizesquarefeet + rawcensustractandblock + longitude + latitude + taxdelinquencyyear, data = train)
+               poolcnt + yearbuilt  + finishedsquarefeet15  + buildingqualitytypeid+ 
+               lotsizesquarefeet + rawcensustractandblock + longitude + latitude  + Clustering, data = train)
 summary(model3)
 vif(model3)
 BIC(model3)
@@ -330,15 +359,15 @@ RSSModel3 <- sum((predictedmodel3 - test$structuretaxvaluedollarcnt)^2, na.rm = 
 AdjR2Model3 <- 1-((RSSModel3/(length(test$structuretaxvaluedollarcnt)-length(summary(model3)$coefficients)-1))/(TSS/(length(test$structuretaxvaluedollarcnt)-1)))
 AdjR2Model3
 
-#Correction for heteroskedasticity:
-library(RCurl)
-# import the function from repository
-url_robust <- "https://raw.githubusercontent.com/IsidoreBeautrelet/economictheoryblog/master/robust_summary.R"
-eval(parse(text = getURL(url_robust, ssl.verifypeer = FALSE)),
-     envir=.GlobalEnv)
-
-modelresultsHouseTaxes <- summary(model3, robust=T)
-modelresultsHouseTaxes
+# #Correction for heteroskedasticity:
+# library(RCurl)
+# # import the function from repository
+# url_robust <- "https://raw.githubusercontent.com/IsidoreBeautrelet/economictheoryblog/master/robust_summary.R"
+# eval(parse(text = getURL(url_robust, ssl.verifypeer = FALSE)),
+#      envir=.GlobalEnv)
+# 
+# modelresultsHouseTaxes <- summary(model3, robust=T)
+# modelresultsHouseTaxes
 ##### END MODEL BUILDING HOUSE TAXES ####
 
 ##### START MODEL BUILDING LAND TAXES #####
@@ -354,7 +383,7 @@ train = housingdataset[-folds[[1]], ]
 TSS <- sum((test$landtaxvaluedollarcnt - mean(test$landtaxvaluedollarcnt, na.rm =  TRUE))^2)
 
 #Model4 Land Tax
-model4 <- lm(landtaxvaluedollarcnt ~ propertylandusetypeid + calculatedfinishedsquarefeet, data = train)
+model4 <- lm(landtaxvaluedollarcnt ~ propertylandusetypeid + calculatedfinishedsquarefeet + Clustering, data = train)
 summary(model4)
 vif(model4)
 BIC(model4)
@@ -371,7 +400,7 @@ bc2 <- boxCox(model4)
 lambda2 = bc$x[which(bc2$y == max(bc2$y))]
 landtaxvaluedollarcnt.bc = (train$landtaxvaluedollarcnt^lambda2 - 1)/lambda2
 
-model5 <- lm(landtaxvaluedollarcnt.bc ~ propertylandusetypeid + calculatedfinishedsquarefeet, data = train)
+model5 <- lm(landtaxvaluedollarcnt.bc ~ propertylandusetypeid + calculatedfinishedsquarefeet + Clustering, data = train)
 summary(model5)
 vif(model5)
 BIC(model5)
@@ -383,9 +412,9 @@ RSSModel5 <- sum((predictedmodel5 - test$landtaxvaluedollarcnt)^2, na.rm = TRUE)
 AdjR2Model5 <- 1-((RSSModel5/(length(test$landtaxvaluedollarcnt)-length(summary(model5)$coefficients)-1))/(TSS/(length(test$landtaxvaluedollarcnt)-1)))
 AdjR2Model5
 
-#Final Model Land Tax 
-modelresultsLandTaxes <- summary(model5, robust=T)
-modelresultsLandTaxes
+# #Final Model Land Tax 
+# modelresultsLandTaxes <- summary(model5, robust=T)
+# modelresultsLandTaxes
 
 #######################################################################################################################################################################################
 ############################################################################### LASSO Regression ###################################################################################### 
@@ -485,15 +514,15 @@ TSS <- sum((trainForest$structuretaxvaluedollarcnt - mean(trainForest$structuret
 
 #Setting the number of variables
 #Cross validation of the number of variables tried at each split
-R2ModelTree <- numeric(29)
-for (i in 1:29) {
-  fit = randomForest(structuretaxvaluedollarcnt ~ ., data = trainForest, mtry = i)
-  RSSRandom <- sum((fit$predicted - trainForest$structuretaxvaluedollarcnt)^2, na.rm = TRUE)
-  R2Random <- 1 - RSSRandom/TSS
-  R2ModelTree[i] <- R2Random
-}
-R2ModelTree
-plot(R2ModelTree, type = 'line')
+# R2ModelTree <- numeric(29)
+# for (i in 1:29) {
+#   fit = randomForest(structuretaxvaluedollarcnt ~ ., data = trainForest, mtry = i)
+#   RSSRandom <- sum((fit$predicted - trainForest$structuretaxvaluedollarcnt)^2, na.rm = TRUE)
+#   R2Random <- 1 - RSSRandom/TSS
+#   R2ModelTree[i] <- R2Random
+# }
+# R2ModelTree
+# plot(R2ModelTree, type = 'line')
 
 #Result: 13
 
@@ -504,7 +533,7 @@ Importance <- data.frame(fit2$importance)
 Importance$variables <- rownames(Importance)
 arrange(Importance, desc(IncNodePurity))
 fit2
-AdjR2Model8 <- 0.6168
+AdjR2Model8 <- 0.6837
 
 #### IMPORTANCE #### 
 # IncNodePurity                    variables
@@ -570,15 +599,15 @@ TSS <- sum((trainForestland$landtaxvaluedollarcnt - mean(trainForestland$landtax
 
 #Setting the number of variables
 #Cross validation of the number of variables tried at each split
-R2ModelTree <- numeric(29)
-for (i in 1:29) {
-  fit = randomForest(landtaxvaluedollarcnt ~ ., data = trainForestland, mtry = i)
-  RSSRandom <- sum((fit$predicted - trainForestland$landtaxvaluedollarcnt)^2, na.rm = TRUE)
-  R2Random <- 1 - RSSRandom/TSS
-  R2ModelTree[i] <- R2Random
-}
-R2ModelTree
-plot(R2ModelTree, type = 'line')
+# R2ModelTree <- numeric(29)
+# for (i in 1:29) {
+#   fit = randomForest(landtaxvaluedollarcnt ~ ., data = trainForestland, mtry = i)
+#   RSSRandom <- sum((fit$predicted - trainForestland$landtaxvaluedollarcnt)^2, na.rm = TRUE)
+#   R2Random <- 1 - RSSRandom/TSS
+#   R2ModelTree[i] <- R2Random
+# }
+# R2ModelTree
+# plot(R2ModelTree, type = 'line')
 
 #Result: 4
 
@@ -589,7 +618,7 @@ Importance <- data.frame(fit2$importance)
 Importance$variables <- rownames(Importance)
 arrange(Importance, desc(IncNodePurity))
 fit2
-AdjR2Model9 <- 0.4214
+AdjR2Model9 <- 0.5168
 
 # IncNodePurity                    variables
 # 1   1.561358e+14         finishedsquarefeet12
@@ -641,4 +670,30 @@ Results <- data.frame(Model = c("Multiple Linear Regression", "MLR Box Coxs", "M
                       Land_Tax = round(c(summary(model4)$adj.r.squared, summary(model5)$adj.r.squared,0, AdjR2Model7, AdjR2Model9),3))
 Results[3,3] <- ""
 Results
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
