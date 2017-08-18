@@ -268,6 +268,8 @@ ggplot(housingdataset, aes(log(calculatedfinishedsquarefeet), log(structuretaxva
 cor.test(log(housingdataset$structuretaxvaluedollarcnt), housingdataset$calculatedfinishedsquarefeet)
 #Significant relationship 0.58
 ggplot(housingdataset, aes(factor(heatingorsystemtypeid), log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Heating System")
+kruskal.test(structuretaxvaluedollarcnt ~ heatingorsystemtypeid, data = housingdataset) 
+
 ggplot(housingdataset, aes(factor(poolcnt), log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Number of Pools")
 t.test(housingdataset$structuretaxvaluedollarcnt ~ housingdataset$poolcnt)
 #Significant Difference 
@@ -278,7 +280,12 @@ ggplot(housingdataset, aes(factor(numberofstories), log(structuretaxvaluedollarc
 cor.test(log(housingdataset$structuretaxvaluedollarcnt), housingdataset$numberofstories)
 #Significant relationship 0.009
 ggplot(housingdataset, aes(factor(propertylandusetypeid), log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Housing Type")
+kruskal.test(structuretaxvaluedollarcnt ~ propertylandusetypeid, data = housingdataset) 
+#Significance 
 
+ggplot(housingdataset, aes(unitcnt, log(structuretaxvaluedollarcnt)))+geom_point()+ggtitle("unitcnt")
+housingdataset[housingdataset$unitcnt >50, "unitcnt"] <- 1
+cor.test(log(housingdataset$structuretaxvaluedollarcnt), housingdataset$unitcnt)
 
 #New Group Cluster
 ggplot(housingdataset, aes(Clustering, log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Clusters")
@@ -296,7 +303,7 @@ train = housingdataset[-folds[[1]], ]
 #Model1 House tax 
 model <- lm(structuretaxvaluedollarcnt~airconditioningtypeid + bathroomcnt + bedroomcnt + 
               calculatedfinishedsquarefeet + heatingorsystemtypeid + poolcnt + yearbuilt + 
-              + propertylandusetypeid + unitcnt + Clustering, data = train)
+              + propertylandusetypeid + Clustering, data = train)
 
 TSS <- sum((test$structuretaxvaluedollarcnt - mean(test$structuretaxvaluedollarcnt, na.rm =  TRUE))^2)
 summary(model)
@@ -316,7 +323,7 @@ lambda = bc$x[which(bc$y == max(bc$y))]
 structuretaxvaluedollarcnt.bc = (train$structuretaxvaluedollarcnt^lambda - 1)/lambda
 model2 <- lm(structuretaxvaluedollarcnt.bc~airconditioningtypeid + bathroomcnt + bedroomcnt + 
               calculatedfinishedsquarefeet + heatingorsystemtypeid + poolcnt + yearbuilt  + 
-              propertylandusetypeid + unitcnt + Clustering , data = train)
+              propertylandusetypeid  + Clustering , data = train)
 
 TSS <- sum((test$structuretaxvaluedollarcnt - mean(test$structuretaxvaluedollarcnt, na.rm =  TRUE))^2)
 summary(model2)
