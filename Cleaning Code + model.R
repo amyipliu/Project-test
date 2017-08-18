@@ -280,8 +280,9 @@ cor.test(log(housingdataset$structuretaxvaluedollarcnt), housingdataset$numberof
 ggplot(housingdataset, aes(factor(propertylandusetypeid), log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Housing Type")
 
 
-#New Group
-ggplot(housingdataset, aes(Clustering, log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Housing Type")
+#New Group Cluster
+ggplot(housingdataset, aes(Clustering, log(structuretaxvaluedollarcnt)))+geom_boxplot()+ggtitle("Clusters")
+ggplot(housingdataset, aes(log(calculatedfinishedsquarefeet), log(structuretaxvaluedollarcnt), color=Clustering))+geom_point()+ggtitle("Clusters") + facet_grid(. ~ Clustering)
 
 #######################################################################################################################################################################################
 ############################################################################### Linear Regression ##################################################################################### 
@@ -347,7 +348,7 @@ train$censustractandblock <- NULL
 #best model based on earlier estimation
 model3 <- lm(structuretaxvaluedollarcnt.bc~airconditioningtypeid + bathroomcnt + calculatedfinishedsquarefeet + heatingorsystemtypeid +
                poolcnt + yearbuilt  + finishedsquarefeet15  + buildingqualitytypeid+ 
-               lotsizesquarefeet + rawcensustractandblock + longitude + latitude  + Clustering, data = train)
+               lotsizesquarefeet + rawcensustractandblock + longitude + latitude + taxdelinquencyyear + Clustering, data = train)
 summary(model3)
 vif(model3)
 BIC(model3)
