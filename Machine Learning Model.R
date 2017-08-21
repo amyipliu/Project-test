@@ -16,6 +16,7 @@ library(lmtest)
 library(tree)
 library(randomForest)
 library(glmnet)
+library(gbm)
 
 #######################################################################################################################################################################################
 ############################################################################### Opening Data sets #################################################################################### 
@@ -517,7 +518,7 @@ train$transactiondate <- NULL
 train <-train[complete.cases(train),]
 
 #Reduce sample size to reduce computation time.
-trainForest <- train[1:10000,]
+trainForest <- train[1:1000,]
 TSS <- sum((trainForest$structuretaxvaluedollarcnt - mean(trainForest$structuretaxvaluedollarcnt, na.rm =  TRUE))^2)
 
 #Setting the number of variables
@@ -667,18 +668,56 @@ AdjR2Model9 <- 0.5168
 # Mean of squared residuals: 92750699114
 # % Var explained: 42.14
 
+
+#######################################################################################################################################################################################
+################################################################################## Boosting ########################################################################################### 
+#######################################################################################################################################################################################
+
+#Real Estate Taxes
+folds = createFolds(housingdataset$parcelid, 5)
+test = housingdataset[folds[[1]], ]
+train = housingdataset[-folds[[1]], ]
+
+TSS <- sum((train$structuretaxvaluedollarcnt - mean(train$structuretaxvaluedollarcnt, na.rm =  TRUE))^2)
+
+Model10 = gbm(structuretaxvaluedollarcnt ~ 
+                         + finishedsquarefeet12 
+                         + calculatedfinishedsquarefeet 
+                         + buildingqualitytypeid 
+                         + yearbuilt + bathroomcnt 
+                         + lotsizesquarefeet 
+                         + bedroomcnt + propertylandusetypeid 
+                         + poolcnt + airconditioningtypeid 
+                         + pooltypeid7 + taxdelinquencyyear 
+                         + pooltypeid10 + hashottuborspa 
+                         + heatingorsystemtypeid 
+                         + finishedsquarefeet15 + unitcnt + Clustering, 
+                         data = train,
+                         distribution = "gaussian",
+                         n.trees = 5000,
+                         interaction.depth = 10, 
+                         shrinkage = 0.01)
+
+RSSModel10 <- sum((predict(Model10, newdata = train, n.trees = 5000) - train$structuretaxvaluedollarcnt)^2, na.rm = TRUE)
+AdjR2Model10 <- 1-(RSSModel10/TSS)
+AdjR2Model10
+
+TSStest <- sum((test$structuretaxvaluedollarcnt - mean(test$structuretaxvaluedollarcnt, na.rm =  TRUE))^2)
+RSSModel10test <- sum((predict(Model10, newdata = test, n.trees = 5000) - test$structuretaxvaluedollarcnt)^2, na.rm = TRUE)
+AdjR2Model10test <- 1-(RSSModel10/TSStest)
+AdjR2Model10test
+
 #######################################################################################################################################################################################
 ############################################################################### End of modelling ###################################################################################### 
 #######################################################################################################################################################################################
 
 #### Results 
 
-Results <- data.frame(Model = c("Multiple Linear Regression", "MLR Box Coxs", "MLR Stepwise", "Lasso Regression", "Random Forests"),
-                      House_Tax =  round(c(summary(model)$adj.r.squared, summary(model2)$adj.r.squared,summary(model3)$adj.r.squared, AdjR2Model6, AdjR2Model8),3),
-                      Land_Tax = round(c(summary(model4)$adj.r.squared, summary(model5)$adj.r.squared,0, AdjR2Model7, AdjR2Model9),3))
+Results <- data.frame(Model = c("Multiple Linear Regression", "MLR Box Coxs", "MLR Stepwise", "Lasso Regression", "Random Forests", "Boosting"),
+                      House_Tax =  round(c(summary(model)$adj.r.squared, summary(model2)$adj.r.squared,summary(model3)$adj.r.squared, AdjR2Model6, AdjR2Model8, AdjR2Model10),3),
+                      Land_Tax = round(c(summary(model4)$adj.r.squared, summary(model5)$adj.r.squared,0, AdjR2Model7, AdjR2Model9, 0),3))
 Results[3,3] <- ""
 Results
-
 
 
 
