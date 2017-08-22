@@ -518,7 +518,7 @@ train$transactiondate <- NULL
 train <-train[complete.cases(train),]
 
 #Reduce sample size to reduce computation time.
-trainForest <- train[1:1000,]
+trainForest <- train[1:10000,]
 TSS <- sum((trainForest$structuretaxvaluedollarcnt - mean(trainForest$structuretaxvaluedollarcnt, na.rm =  TRUE))^2)
 
 #Setting the number of variables
@@ -543,48 +543,6 @@ Importance$variables <- rownames(Importance)
 arrange(Importance, desc(IncNodePurity))
 fit2
 AdjR2Model8 <- 0.6837
-
-#### IMPORTANCE #### 
-# IncNodePurity                    variables
-# 1   1.499308e+14         finishedsquarefeet12
-# 2   8.760989e+13 calculatedfinishedsquarefeet
-# 3   2.747342e+13        buildingqualitytypeid
-# 4   2.148542e+13                  fullbathcnt
-# 5   2.130805e+13                  bathroomcnt
-# 6   2.003047e+13                    yearbuilt
-# 7   1.730410e+13            calculatedbathnbr
-# 8   1.605000e+13            lotsizesquarefeet
-# 9   1.598112e+13                     latitude
-# 10  1.450941e+13                    longitude
-# 11  1.267056e+13       rawcensustractandblock
-# 12  1.179566e+13                     parcelid
-# 13  8.604678e+12                   bedroomcnt
-# 14  4.114194e+12        propertylandusetypeid
-# 15  2.751088e+12                      unitcnt
-# 16  2.495306e+12        heatingorsystemtypeid
-# 17  2.192346e+12         finishedsquarefeet15
-# 18  2.021844e+12        airconditioningtypeid
-# 19  1.744449e+12                  pooltypeid7
-# 20  1.585746e+12                      poolcnt
-# 21  1.424437e+12           taxdelinquencyflag
-# 22  1.410070e+12           taxdelinquencyyear
-# 23  2.288996e+11                 pooltypeid10
-# 24  2.173026e+11               hashottuborspa
-# 25  2.319345e+09              numberofstories
-# 26  5.682363e+08          buildingclasstypeid
-# 27  0.000000e+00              garagetotalsqft
-# 28  0.000000e+00               assessmentyear
-
-#Result 
-
-# Call:
-#   randomForest(formula = structuretaxvaluedollarcnt ~ ., data = trainForest,      ntree = 100, mtry = 13) 
-# Type of random forest: regression
-# Number of trees: 100
-# No. of variables tried at each split: 13
-# 
-# Mean of squared residuals: 17689234092
-# % Var explained: 61.68
 
 ####Land tax####
 folds = createFolds(housingdataset$parcelid, 5)
@@ -628,46 +586,6 @@ Importance$variables <- rownames(Importance)
 arrange(Importance, desc(IncNodePurity))
 fit2
 AdjR2Model9 <- 0.5168
-
-# IncNodePurity                    variables
-# 1   1.561358e+14         finishedsquarefeet12
-# 2   1.524757e+14 calculatedfinishedsquarefeet
-# 3   1.491856e+14                    longitude
-# 4   1.288952e+14       rawcensustractandblock
-# 5   1.087304e+14                     latitude
-# 6   1.056160e+14                     parcelid
-# 7   9.261170e+13        buildingqualitytypeid
-# 8   8.057039e+13                  bathroomcnt
-# 9   7.528872e+13            calculatedbathnbr
-# 10  7.286828e+13                    yearbuilt
-# 11  6.311014e+13                   bedroomcnt
-# 12  6.081082e+13            lotsizesquarefeet
-# 13  5.914029e+13        propertylandusetypeid
-# 14  5.382498e+13        heatingorsystemtypeid
-# 15  5.060546e+13                  fullbathcnt
-# 16  1.423432e+13         finishedsquarefeet15
-# 17  1.187715e+13                  pooltypeid7
-# 18  1.161121e+13                      poolcnt
-# 19  1.040844e+13                      unitcnt
-# 20  1.016435e+13        airconditioningtypeid
-# 21  2.063483e+12           taxdelinquencyyear
-# 22  1.466136e+12           taxdelinquencyflag
-# 23  8.505614e+11                 pooltypeid10
-# 24  8.389483e+11               hashottuborspa
-# 25  4.787332e+10              numberofstories
-# 26  1.120088e+10          buildingclasstypeid
-# 27  0.000000e+00              garagetotalsqft
-# 28  0.000000e+00               assessmentyear
-
-# Call:
-#   randomForest(formula = landtaxvaluedollarcnt ~ ., data = trainForestland,      ntree = 100, mtry = 4) 
-# Type of random forest: regression
-# Number of trees: 100
-# No. of variables tried at each split: 4
-# 
-# Mean of squared residuals: 92750699114
-# % Var explained: 42.14
-
 
 #######################################################################################################################################################################################
 ################################################################################## Boosting ########################################################################################### 
